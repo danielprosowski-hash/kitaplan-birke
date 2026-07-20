@@ -1,5 +1,6 @@
 {
-  "name": "webapp",
+  "name": "kitaplan-birke",
+  "author": "Daniel Prosowski",
   "private": true,
   "version": "0.0.0",
   "type": "module",

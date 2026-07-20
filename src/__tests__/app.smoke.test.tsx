@@ -16,7 +16,7 @@ describe('App – Rauchtest', () => {
       fireEvent.click(knopf!)
       // Nach dem Klick sollte die App nicht abstürzen – ein beliebiges,
       // für jede Ansicht vorhandenes Element (die Sidebar) muss weiter da sein.
-      await waitFor(() => expect(screen.getByText('KitaPlan')).toBeTruthy())
+      await waitFor(() => expect(screen.getByText('Kitaplan Birke')).toBeTruthy())
     }
   })
 })

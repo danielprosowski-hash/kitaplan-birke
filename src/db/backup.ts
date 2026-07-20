@@ -54,7 +54,7 @@ export async function sicherungEinspielen(datei: File): Promise<void> {
   const text = await datei.text()
   const parsed = JSON.parse(text) as Sicherungsdatei
   if (parsed.format !== 'kitaplan-sicherung' || !parsed.daten) {
-    throw new Error('Das ist keine gültige KitaPlan-Sicherungsdatei.')
+    throw new Error('Das ist keine gültige Kitaplan-Birke-Sicherungsdatei.')
   }
   await db.transaction('rw', DATENTABELLEN.map((t) => db.table(t)), async () => {
     for (const tabelle of DATENTABELLEN) {

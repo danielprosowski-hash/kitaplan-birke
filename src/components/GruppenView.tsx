@@ -1,17 +1,24 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { GRUPPEN_TYPEN, type GruppenTyp } from '../types'
+import SpeicherAnzeige from './SpeicherAnzeige'
+import { useSpeicherFeedback } from '../hooks/useSpeicherFeedback'
 
 export default function GruppenView() {
   const gruppen = useLiveQuery(() => db.gruppen.orderBy('slot').toArray(), [], [])
+  const { sichtbar, ausloesen } = useSpeicherFeedback()
 
   async function aendern(id: number, feld: 'name' | 'typ' | 'mindestbesetzung' | 'aktiv', wert: string | number | boolean) {
     await db.gruppen.update(id, { [feld]: wert })
+    ausloesen()
   }
 
   return (
     <div className="view">
-      <h1>Gruppen</h1>
+      <div className="formular-kopf">
+        <h1 style={{ margin: 0 }}>Gruppen</h1>
+        <SpeicherAnzeige sichtbar={sichtbar} />
+      </div>
       <p className="view-untertitel">Acht feste Slots. Nur aktive Gruppen erscheinen im Wochenplan.</p>
       <table className="tabelle">
         <thead>

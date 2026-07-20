@@ -1,4 +1,6 @@
-# KitaPlan (Web)
+# Kitaplan Birke
+
+Erstellt von Daniel Prosowski.
 
 Dienstplanung für eine kleine Kita – als Web-App. Läuft vollständig im
 Browser (kein Server, keine Cloud), speichert alle Daten lokal auf dem
@@ -11,6 +13,9 @@ nötig.
 Dies ist die Web-Version der ursprünglichen macOS-App „KitaPlan"
 (SwiftUI). Der Funktionsumfang wurde 1:1 übernommen und um einen
 Kalender für Wünsche und Termine ergänzt.
+
+Eine kurze Bedienanleitung fürs Team liegt bei: [`dokumentation/Bedienanleitung.pdf`](dokumentation/Bedienanleitung.pdf).
+Sie ist auch aus der laufenden App heraus verlinkt (Backup & Einstellungen).
 
 ## Funktionen
 

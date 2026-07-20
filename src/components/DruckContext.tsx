@@ -44,7 +44,13 @@ export function DruckProvider({ children }: { children: ReactNode }) {
       {state && (
         <div className={`print-overlay${state.quer ? ' quer' : ''}`}>
           <div className="print-toolbar no-print">
-            <strong>{state.titel}</strong>
+            <div>
+              <strong>{state.titel}</strong>
+              <div className="hinweis-klein">
+                Für ein PDF im Druckdialog als Ziel „Als PDF speichern" wählen (Windows: „Microsoft Print to PDF").
+                {state.quer ? ' Für dieses Dokument im Dialog „Querformat" einstellen, falls nicht automatisch gewählt.' : ''}
+              </div>
+            </div>
             <div className="print-toolbar-buttons">
               <button onClick={() => window.print()}>Drucken / Als PDF speichern</button>
               <button onClick={() => setState(null)}>Schließen</button>

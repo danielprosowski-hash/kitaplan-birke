@@ -1,9 +1,26 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { KALENDER_FARBEN, KALENDER_KATEGORIEN, type KalenderEintrag, type KalenderKategorie } from '../types'
+import {
+  ABWESENHEITSARTEN,
+  KALENDER_FARBEN,
+  KALENDER_KATEGORIEN,
+  type Abwesenheitsart,
+  type KalenderEintrag,
+  type KalenderKategorie,
+} from '../types'
 import { addMonate, addTage, formatDatum, formatMonatJahr, isoHeute, montagDerWoche, wochentagKurz } from '../lib/calendar'
 import Modal from './Modal'
+
+/** Sinnvolle Vorbelegung, wenn aus einem Kalender-Wunsch eine echte
+ * Abwesenheit gemacht wird. Bleibt im Dialog änderbar. */
+const KATEGORIE_ZU_ABWESENHEIT: Record<KalenderKategorie, Abwesenheitsart> = {
+  Urlaubswunsch: 'U',
+  'Frei-Wunsch': 'F',
+  Termin: 'F',
+  Fortbildung: 'FB',
+  Sonstiges: 'F',
+}
 
 /** Kalender für Urlaubswünsche, freie Tage und Termine der Beschäftigten.
  * Die Leitung trägt Wünsche vorab ein; im Wochenplan werden sie als
@@ -130,6 +147,10 @@ function EintragSheet({
   const [kategorie, setKategorie] = useState<KalenderKategorie>(eintrag?.kategorie ?? 'Urlaubswunsch')
   const [bemerkung, setBemerkung] = useState(eintrag?.bemerkung ?? '')
   const [erledigt, setErledigt] = useState(eintrag?.erledigt ?? false)
+  const [abwesenheitsart, setAbwesenheitsart] = useState<Abwesenheitsart>(
+    KATEGORIE_ZU_ABWESENHEIT[eintrag?.kategorie ?? 'Urlaubswunsch'],
+  )
+  const [uebernahmeMeldung, setUebernahmeMeldung] = useState<string | null>(null)
 
   async function speichern() {
     if (mitarbeiterId === '') return
@@ -144,6 +165,24 @@ function EintragSheet({
   async function loeschen() {
     if (eintrag?.id) await db.kalender.delete(eintrag.id)
     onSchliessen()
+  }
+
+  async function alsAbwesenheitUebernehmen() {
+    if (mitarbeiterId === '' || !eintrag?.id) return
+    const vorhanden = await db.abwesenheiten.where({ mitarbeiterId, datum }).first()
+    if (vorhanden) {
+      setUebernahmeMeldung(`Für diesen Tag ist bereits eine Abwesenheit (${vorhanden.art}) erfasst.`)
+    } else {
+      await db.abwesenheiten.add({
+        datum,
+        art: abwesenheitsart,
+        bemerkung: bemerkung || `Aus Kalender: ${kategorie}`,
+        mitarbeiterId,
+      })
+      setUebernahmeMeldung('Als Abwesenheit übernommen und im Stundenkonto berücksichtigt.')
+    }
+    await db.kalender.update(eintrag.id, { erledigt: true })
+    setErledigt(true)
   }
 
   return (
@@ -173,11 +212,38 @@ function EintragSheet({
         Bemerkung
         <input type="text" value={bemerkung} onChange={(e) => setBemerkung(e.target.value)} placeholder="optional" />
       </label>
+      <p className="hinweis-klein">
+        Wichtig: Dieser Kalender-Eintrag ist nur eine Erinnerung. Er wirkt sich NICHT auf den Dienstplan oder die
+        Abrechnung aus. Für einen genehmigten Urlaub/freien Tag zusätzlich unten „Als Abwesenheit übernehmen" nutzen
+        – erst das trägt sich ins Stundenkonto ein.
+      </p>
       {eintrag && (
-        <label>
-          <input type="checkbox" checked={erledigt} onChange={(e) => setErledigt(e.target.checked)} /> Im Wochenplan
-          bereits berücksichtigt
-        </label>
+        <>
+          <div className="karte" style={{ margin: '4px 0 14px' }}>
+            <strong style={{ fontSize: 13 }}>Als Abwesenheit übernehmen</strong>
+            <p className="hinweis-klein" style={{ margin: '4px 0 8px' }}>
+              Legt für {formatDatum(datum)} einen echten Abwesenheits-Eintrag an (wirkt sich auf Wochenplan-Warnungen
+              und die Abrechnung aus).
+            </p>
+            <div className="formular-zeile" style={{ alignItems: 'center' }}>
+              <select value={abwesenheitsart} onChange={(e) => setAbwesenheitsart(e.target.value as Abwesenheitsart)}>
+                {ABWESENHEITSARTEN.map((a) => (
+                  <option key={a.code} value={a.code}>
+                    {a.code} – {a.bezeichnung}
+                  </option>
+                ))}
+              </select>
+              <button type="button" disabled={mitarbeiterId === ''} onClick={alsAbwesenheitUebernehmen}>
+                Übernehmen
+              </button>
+            </div>
+            {uebernahmeMeldung && <p className="erfolg-text hinweis-klein">{uebernahmeMeldung}</p>}
+          </div>
+          <label>
+            <input type="checkbox" checked={erledigt} onChange={(e) => setErledigt(e.target.checked)} /> Als
+            „erledigt" markieren (nur eine Notiz für dich, ändert nichts an Plan/Abrechnung)
+          </label>
+        </>
       )}
       <div className="modal-aktionen">
         {eintrag && (

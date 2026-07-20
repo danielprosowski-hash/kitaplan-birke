@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { FUNKTIONEN, type Funktion, type Mitarbeiter } from '../types'
 import { istAktiv, tagesSoll } from '../lib/dienst'
-import { stundenText } from '../lib/calendar'
+import { isoHeute, stundenText } from '../lib/calendar'
 import Modal from './Modal'
+import SpeicherAnzeige from './SpeicherAnzeige'
+import { useSpeicherFeedback } from '../hooks/useSpeicherFeedback'
 
 export default function PersonalView() {
   const mitarbeitende = useLiveQuery(
@@ -15,18 +17,48 @@ export default function PersonalView() {
   const gruppen = useLiveQuery(() => db.gruppen.orderBy('slot').toArray(), [], [])
   const [ausgewaehlt, setAusgewaehlt] = useState<number | null>(null)
   const [zeigeNeu, setZeigeNeu] = useState(false)
+  const [zeigeLoeschDialog, setZeigeLoeschDialog] = useState(false)
 
   const aktuelle = mitarbeitende?.find((m) => m.id === ausgewaehlt)
   const aktiveGruppen = (gruppen ?? []).filter((g) => g.aktiv)
+  const { sichtbar: gespeichertSichtbar, ausloesen: zeigeGespeichert } = useSpeicherFeedback()
+
+  const [kuerzelEntwurf, setKuerzelEntwurf] = useState(aktuelle?.kuerzel ?? '')
+  useEffect(() => {
+    setKuerzelEntwurf(aktuelle?.kuerzel ?? '')
+  }, [aktuelle?.id, aktuelle?.kuerzel])
+
+  const kuerzelVergeben = (mitarbeitende ?? []).some(
+    (m) => m.id !== aktuelle?.id && m.kuerzel.toUpperCase() === kuerzelEntwurf.trim().toUpperCase(),
+  )
+  const kuerzelZuKurz = kuerzelEntwurf.trim().length < 2
+  const kuerzelFehler = kuerzelVergeben
+    ? 'Dieses Kürzel ist schon vergeben – bitte ein anderes wählen.'
+    : kuerzelZuKurz
+      ? 'Das Kürzel braucht mindestens 2 Zeichen.'
+      : null
 
   async function speichern(feld: keyof Mitarbeiter, wert: unknown) {
     if (!aktuelle?.id) return
     await db.mitarbeiter.update(aktuelle.id, { [feld]: wert })
+    zeigeGespeichert()
   }
 
-  async function loeschen() {
+  function kuerzelUebernehmen() {
+    if (!aktuelle?.id || kuerzelFehler) return
+    if (kuerzelEntwurf.toUpperCase() !== aktuelle.kuerzel) {
+      speichern('kuerzel', kuerzelEntwurf.toUpperCase())
+    }
+  }
+
+  async function alsAusgeschiedenMarkieren() {
     if (!aktuelle?.id) return
-    if (!confirm(`${aktuelle.name} wirklich löschen? Dienste, Abwesenheiten und Ist-Zeiten dieser Person werden ebenfalls entfernt.`)) return
+    await db.mitarbeiter.update(aktuelle.id, { austrittsdatum: aktuelle.austrittsdatum ?? isoHeute() })
+    setZeigeLoeschDialog(false)
+  }
+
+  async function endgueltigLoeschen() {
+    if (!aktuelle?.id) return
     const id = aktuelle.id
     await db.transaction('rw', [db.mitarbeiter, db.abwesenheiten, db.dienste, db.istZeiten, db.kalender], async () => {
       await db.abwesenheiten.where('mitarbeiterId').equals(id).delete()
@@ -35,6 +67,7 @@ export default function PersonalView() {
       await db.kalender.where('mitarbeiterId').equals(id).delete()
       await db.mitarbeiter.delete(id)
     })
+    setZeigeLoeschDialog(false)
     setAusgewaehlt(null)
   }
 
@@ -61,8 +94,8 @@ export default function PersonalView() {
         </div>
         <div className="liste-fusszeile">
           <button onClick={() => setZeigeNeu(true)}>+ Neu</button>
-          <button className="gefahr" disabled={!aktuelle} onClick={loeschen}>
-            Löschen
+          <button className="gefahr" disabled={!aktuelle} onClick={() => setZeigeLoeschDialog(true)}>
+            Löschen …
           </button>
           <span className="spacer" />
           <span className="hinweis-klein">{mitarbeitende?.length ?? 0} Mitarbeitende</span>
@@ -72,7 +105,10 @@ export default function PersonalView() {
       <div className="split-detail">
         {aktuelle ? (
           <div className="formular" key={aktuelle.id}>
-            <h2>Person</h2>
+            <div className="formular-kopf">
+              <h2 style={{ margin: 0 }}>Person</h2>
+              <SpeicherAnzeige sichtbar={gespeichertSichtbar} />
+            </div>
             <label>
               Name
               <input type="text" value={aktuelle.name} onChange={(e) => speichern('name', e.target.value)} />
@@ -82,10 +118,12 @@ export default function PersonalView() {
                 Kürzel
                 <input
                   type="text"
-                  value={aktuelle.kuerzel}
-                  onChange={(e) => speichern('kuerzel', e.target.value.toUpperCase())}
+                  value={kuerzelEntwurf}
+                  onChange={(e) => setKuerzelEntwurf(e.target.value.toUpperCase())}
+                  onBlur={kuerzelUebernehmen}
                   style={{ width: 100 }}
                 />
+                {kuerzelFehler && <span className="fehler-text hinweis-klein">{kuerzelFehler}</span>}
               </label>
               <label>
                 Funktion
@@ -179,12 +217,35 @@ export default function PersonalView() {
         <NeuSheet
           gruppenSlots={aktiveGruppen.map((g) => ({ slot: g.slot, name: g.name, typ: g.typ }))}
           bestehendeReihenfolge={mitarbeitende?.map((m) => m.reihenfolge) ?? []}
+          vorhandeneKuerzel={mitarbeitende?.map((m) => m.kuerzel) ?? []}
           onSchliessen={() => setZeigeNeu(false)}
           onAngelegt={(id) => {
             setZeigeNeu(false)
             setAusgewaehlt(id)
           }}
         />
+      )}
+
+      {zeigeLoeschDialog && aktuelle && (
+        <Modal titel={`${aktuelle.name} entfernen?`} onSchliessen={() => setZeigeLoeschDialog(false)}>
+          <p>
+            In den meisten Fällen ist <strong>„Als ausgeschieden markieren"</strong> die richtige Wahl: Die Person
+            verschwindet aus den Auswahllisten für neue Dienste, aber alle bisherigen Dienste, Abwesenheiten und
+            Abrechnungsdaten bleiben erhalten und sind weiter auswertbar.
+          </p>
+          <p className="hinweis-klein">
+            „Endgültig löschen" entfernt die Person und <strong>unwiderruflich</strong> auch alle ihre Dienste,
+            Abwesenheiten, Ist-Zeiten und Kalendereinträge – auch aus vergangenen Monaten. Das lässt sich nur über
+            eine zuvor heruntergeladene Sicherung rückgängig machen.
+          </p>
+          <div className="modal-aktionen">
+            <button onClick={() => setZeigeLoeschDialog(false)}>Abbrechen</button>
+            <button onClick={alsAusgeschiedenMarkieren}>Als ausgeschieden markieren</button>
+            <button className="gefahr" onClick={endgueltigLoeschen}>
+              Endgültig löschen
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   )
@@ -193,11 +254,13 @@ export default function PersonalView() {
 function NeuSheet({
   gruppenSlots,
   bestehendeReihenfolge,
+  vorhandeneKuerzel,
   onSchliessen,
   onAngelegt,
 }: {
   gruppenSlots: { slot: number; name: string; typ: string }[]
   bestehendeReihenfolge: number[]
+  vorhandeneKuerzel: string[]
   onSchliessen: () => void
   onAngelegt: (id: number) => void
 }) {
@@ -207,7 +270,11 @@ function NeuSheet({
   const [wochenstunden, setWochenstunden] = useState(35)
   const [stammgruppeSlot, setStammgruppeSlot] = useState(-1)
 
+  const kuerzelVergeben = vorhandeneKuerzel.some((k) => k.toUpperCase() === kuerzel.trim().toUpperCase())
+  const kuerzelGueltig = kuerzel.trim().length >= 2 && !kuerzelVergeben
+
   async function anlegen() {
+    if (!kuerzelGueltig) return
     const reihenfolge = (bestehendeReihenfolge.length > 0 ? Math.max(...bestehendeReihenfolge) : 0) + 1
     const id = await db.mitarbeiter.add({
       kuerzel: kuerzel.toUpperCase(),
@@ -232,6 +299,7 @@ function NeuSheet({
       <label>
         Kürzel (2–3 Buchstaben)
         <input type="text" value={kuerzel} onChange={(e) => setKuerzel(e.target.value.toUpperCase())} />
+        {kuerzelVergeben && <span className="fehler-text hinweis-klein">Dieses Kürzel ist schon vergeben.</span>}
       </label>
       <label>
         Funktion
@@ -260,7 +328,7 @@ function NeuSheet({
       </label>
       <div className="modal-aktionen">
         <button onClick={onSchliessen}>Abbrechen</button>
-        <button className="primaer" disabled={name.trim().length === 0 || kuerzel.trim().length < 2} onClick={anlegen}>
+        <button className="primaer" disabled={name.trim().length === 0 || !kuerzelGueltig} onClick={anlegen}>
           Anlegen
         </button>
       </div>

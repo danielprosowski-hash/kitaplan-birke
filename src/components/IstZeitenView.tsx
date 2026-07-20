@@ -66,8 +66,8 @@ export default function IstZeitenView() {
             <thead>
               <tr>
                 <th style={{ width: 110 }}>Tag</th>
-                <th style={{ width: 70 }}>Von</th>
-                <th style={{ width: 70 }}>Bis</th>
+                <th style={{ width: 110 }}>Von</th>
+                <th style={{ width: 110 }}>Bis</th>
                 <th style={{ width: 70 }}>Brutto</th>
                 <th style={{ width: 70 }}>Pause</th>
                 <th style={{ width: 70 }}>Netto</th>
@@ -156,22 +156,22 @@ function IstZeitZeile({
       </td>
       <td>
         <input
-          type="text"
+          type="time"
           value={von}
           disabled={gesperrt}
           onChange={(e) => setVon(e.target.value)}
           onBlur={() => speichern(von, bis)}
-          style={{ width: 60 }}
+          style={{ width: 100 }}
         />
       </td>
       <td>
         <input
-          type="text"
+          type="time"
           value={bis}
           disabled={gesperrt}
           onChange={(e) => setBis(e.target.value)}
           onBlur={() => speichern(von, bis)}
-          style={{ width: 60 }}
+          style={{ width: 100 }}
         />
       </td>
       <td className="zahl">{brutto > 0 ? stundenText(brutto) : ''}</td>

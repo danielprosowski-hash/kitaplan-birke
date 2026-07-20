@@ -164,6 +164,8 @@ export default function WochenplanView() {
       <div className="vorlagen-leiste">
         <span>
           {vorlagenAnzahl === 0 ? 'Keine Standard-Woche gespeichert.' : `Standard-Woche gespeichert (${vorlagenAnzahl} Dienste).`}
+          {' '}
+          <span className="hinweis-klein">Gilt für die ganze angezeigte Woche, über alle Gruppen hinweg – nicht nur für {gruppe?.name ?? 'die gewählte Gruppe'}.</span>
         </span>
         <span className="spacer" />
         {meldung && <span className="erfolg-text">{meldung}</span>}
@@ -195,6 +197,10 @@ export default function WochenplanView() {
             </div>
           )}
 
+          <p className="hinweis-klein" style={{ margin: '0 0 8px' }}>
+            Tipp: Dienstkarten lassen sich mit der Maus auf einen anderen Tag ziehen. Auf dem Tablet oder ohne Maus:
+            Karte antippen und den Tag im Dialog umstellen.
+          </p>
           <div className="wochenraster">
             {woche.alleTage.map((tag) => (
               <TagSpalte
@@ -433,7 +439,7 @@ function DienstNeuSheet({
 
   const b1 = parseZeit(beginn1)
   const e1 = parseZeit(ende1)
-  const gueltig = personId !== '' && b1 != null && e1 != null
+  const gueltig = personId !== '' && b1 != null && e1 != null && e1 > b1
 
   async function anlegen() {
     if (!gueltig) return
@@ -469,26 +475,29 @@ function DienstNeuSheet({
       <div className="formular-zeile">
         <label>
           Beginn 1
-          <input type="text" value={beginn1} onChange={(e) => setBeginn1(e.target.value)} style={{ width: 80 }} />
+          <input type="time" value={beginn1} onChange={(e) => setBeginn1(e.target.value)} style={{ width: 110 }} />
         </label>
         <label>
           Ende 1
-          <input type="text" value={ende1} onChange={(e) => setEnde1(e.target.value)} style={{ width: 80 }} />
+          <input type="time" value={ende1} onChange={(e) => setEnde1(e.target.value)} style={{ width: 110 }} />
         </label>
       </div>
+      {e1 != null && b1 != null && e1 <= b1 && (
+        <p className="fehler-text hinweis-klein">Ende muss nach dem Beginn liegen.</p>
+      )}
       <div className="formular-zeile">
         <label>
-          Beginn 2 (optional)
-          <input type="text" value={beginn2} onChange={(e) => setBeginn2(e.target.value)} style={{ width: 80 }} />
+          Beginn 2 (nur bei geteiltem Dienst)
+          <input type="time" value={beginn2} onChange={(e) => setBeginn2(e.target.value)} style={{ width: 110 }} />
         </label>
         <label>
-          Ende 2 (optional)
-          <input type="text" value={ende2} onChange={(e) => setEnde2(e.target.value)} style={{ width: 80 }} />
+          Ende 2 (nur bei geteiltem Dienst)
+          <input type="time" value={ende2} onChange={(e) => setEnde2(e.target.value)} style={{ width: 110 }} />
         </label>
       </div>
       <label>
         Pause (Std.)
-        <input type="number" step={0.25} value={pause} onChange={(e) => setPause(Number(e.target.value))} style={{ width: 80 }} />
+        <input type="number" step={0.25} min={0} value={pause} onChange={(e) => setPause(Number(e.target.value))} style={{ width: 80 }} />
       </label>
       <WochentagAuswahl basisdatum={datum} auswahl={zusatzTage} setAuswahl={setZusatzTage} />
       <div className="modal-aktionen">
@@ -510,7 +519,9 @@ function DienstBearbeitenSheet({
   mitarbeitende: Mitarbeiter[]
   onSchliessen: () => void
 }) {
+  const woche = wocheninfo(dienst.datum)
   const [personId, setPersonId] = useState<number | ''>(dienst.mitarbeiterId ?? '')
+  const [datum, setDatum] = useState(dienst.datum)
   const [beginn1, setBeginn1] = useState(formatZeit(dienst.beginn1Minuten))
   const [ende1, setEnde1] = useState(formatZeit(dienst.ende1Minuten))
   const [beginn2, setBeginn2] = useState(formatZeit(dienst.beginn2Minuten))
@@ -518,26 +529,30 @@ function DienstBearbeitenSheet({
   const [pause, setPause] = useState(dienst.pauseStunden)
   const [kopierTage, setKopierTage] = useState<Set<number>>(new Set())
 
+  const b1 = parseZeit(beginn1)
+  const e1 = parseZeit(ende1)
+  const zeitenGueltig = b1 != null && e1 != null && e1 > b1
+
   const netto = dienstNetto({
     ...dienst,
-    beginn1Minuten: parseZeit(beginn1) ?? dienst.beginn1Minuten,
-    ende1Minuten: parseZeit(ende1) ?? dienst.ende1Minuten,
+    beginn1Minuten: b1 ?? dienst.beginn1Minuten,
+    ende1Minuten: e1 ?? dienst.ende1Minuten,
     beginn2Minuten: parseZeit(beginn2),
     ende2Minuten: parseZeit(ende2),
     pauseStunden: pause,
   })
 
   async function speichern() {
+    if (!zeitenGueltig) return
     const aenderungen: Partial<Dienst> = {
       mitarbeiterId: personId === '' ? null : (personId as number),
+      datum,
       pauseStunden: pause,
+      beginn1Minuten: b1,
+      ende1Minuten: e1,
+      beginn2Minuten: parseZeit(beginn2),
+      ende2Minuten: parseZeit(ende2),
     }
-    const b1 = parseZeit(beginn1)
-    const e1 = parseZeit(ende1)
-    if (b1 != null) aenderungen.beginn1Minuten = b1
-    if (e1 != null) aenderungen.ende1Minuten = e1
-    aenderungen.beginn2Minuten = parseZeit(beginn2)
-    aenderungen.ende2Minuten = parseZeit(ende2)
     await db.dienste.update(dienst.id!, aenderungen)
 
     if (kopierTage.size > 0) {
@@ -564,7 +579,7 @@ function DienstBearbeitenSheet({
   }
 
   return (
-    <Modal titel={`Dienst bearbeiten – ${formatDatum(dienst.datum)}`} onSchliessen={onSchliessen}>
+    <Modal titel="Dienst bearbeiten" onSchliessen={onSchliessen}>
       <label>
         Person
         <select value={personId} onChange={(e) => setPersonId(e.target.value === '' ? '' : Number(e.target.value))}>
@@ -576,29 +591,45 @@ function DienstBearbeitenSheet({
           ))}
         </select>
       </label>
+      <label>
+        Tag
+        <select value={datum} onChange={(e) => setDatum(e.target.value)}>
+          {woche.alleTage.map((tag) => (
+            <option key={tag} value={tag}>
+              {wochentagKurz(tag)}, {formatDatum(tag)}
+            </option>
+          ))}
+        </select>
+        <span className="hinweis-klein">
+          Tipp: Dienstkarten im Wochenplan lassen sich auch mit der Maus auf einen anderen Tag ziehen.
+        </span>
+      </label>
       <div className="formular-zeile">
         <label>
           Beginn 1
-          <input type="text" value={beginn1} onChange={(e) => setBeginn1(e.target.value)} style={{ width: 80 }} />
+          <input type="time" value={beginn1} onChange={(e) => setBeginn1(e.target.value)} style={{ width: 110 }} />
         </label>
         <label>
           Ende 1
-          <input type="text" value={ende1} onChange={(e) => setEnde1(e.target.value)} style={{ width: 80 }} />
+          <input type="time" value={ende1} onChange={(e) => setEnde1(e.target.value)} style={{ width: 110 }} />
         </label>
       </div>
+      {!zeitenGueltig && (
+        <p className="fehler-text hinweis-klein">Ende muss nach dem Beginn liegen.</p>
+      )}
       <div className="formular-zeile">
         <label>
-          Beginn 2 (optional)
-          <input type="text" value={beginn2} onChange={(e) => setBeginn2(e.target.value)} style={{ width: 80 }} />
+          Beginn 2 (nur bei geteiltem Dienst)
+          <input type="time" value={beginn2} onChange={(e) => setBeginn2(e.target.value)} style={{ width: 110 }} />
         </label>
         <label>
-          Ende 2 (optional)
-          <input type="text" value={ende2} onChange={(e) => setEnde2(e.target.value)} style={{ width: 80 }} />
+          Ende 2 (nur bei geteiltem Dienst)
+          <input type="time" value={ende2} onChange={(e) => setEnde2(e.target.value)} style={{ width: 110 }} />
         </label>
       </div>
       <label>
         Pause (Std.)
-        <input type="number" step={0.25} value={pause} onChange={(e) => setPause(Number(e.target.value))} style={{ width: 80 }} />
+        <input type="number" step={0.25} min={0} value={pause} onChange={(e) => setPause(Number(e.target.value))} style={{ width: 80 }} />
       </label>
       <div className="feldanzeige">
         <span className="hinweis-klein">Netto-Stunden</span>
@@ -617,7 +648,7 @@ function DienstBearbeitenSheet({
         </button>
         <span className="spacer" />
         <button onClick={onSchliessen}>Abbrechen</button>
-        <button className="primaer" onClick={speichern}>
+        <button className="primaer" disabled={!zeitenGueltig} onClick={speichern}>
           Speichern
         </button>
       </div>

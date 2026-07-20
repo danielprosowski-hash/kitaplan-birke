@@ -16,7 +16,9 @@ export default function Sidebar({ aktiv, onWechsel, sicherungFaellig }: Props) {
         <span className="sidebar-logo">
           <BirkeIcon size={22} />
         </span>
-        <span>KitaPlan</span>
+        <span>
+          Kitaplan Birke
+        </span>
       </div>
       {GRUPPEN_REIHENFOLGE.map((gruppe) => (
         <div className="sidebar-gruppe" key={gruppe}>
@@ -35,6 +37,7 @@ export default function Sidebar({ aktiv, onWechsel, sicherungFaellig }: Props) {
           ))}
         </div>
       ))}
+      <div className="sidebar-fusszeile">Erstellt von Daniel Prosowski</div>
     </nav>
   )
 }

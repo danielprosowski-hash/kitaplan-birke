@@ -62,19 +62,26 @@ export default function EinstellungenView({ onGeaendert }: { onGeaendert: () => 
   return (
     <div className="view">
       <h1>Backup &amp; Einstellungen</h1>
+      <p className="hinweis-klein" style={{ marginTop: -8, marginBottom: 18 }}>
+        Kitaplan Birke · Erstellt von Daniel Prosowski ·{' '}
+        <a href="./Bedienanleitung.pdf" target="_blank" rel="noreferrer">
+          Kurzanleitung als PDF
+        </a>
+      </p>
 
       <div className="karte">
         <h3>Wo liegen die Daten?</h3>
         <p>
-          KitaPlan läuft vollständig im Browser. Alle Eingaben werden sofort lokal im Browser dieses Geräts
+          Kitaplan Birke läuft vollständig im Browser. Alle Eingaben werden sofort lokal im Browser dieses Geräts
           gespeichert (IndexedDB) – es gibt keinen Server, an den Daten übertragen werden. Das funktioniert
           gleichermaßen unter Windows, macOS und Linux, in jedem aktuellen Browser (Chrome, Edge, Firefox).
         </p>
-        <p className="hinweis-klein">
-          Wichtig: Die Daten liegen nur in diesem Browser auf diesem Gerät. Wird der Browser-Speicher geleert
-          (z. B. „Browserdaten löschen") oder ein anderes Gerät genutzt, sind sie ohne Sicherung nicht verfügbar.
-          Personaldaten sind DSGVO-sensibel – lade die Sicherungsdatei nur an einem geschützten Ort ab.
-        </p>
+        <div className="hinweisbanner" style={{ marginTop: 12 }}>
+          ⚠ Wichtig: Die Daten liegen ausschließlich in diesem Browser auf diesem Gerät. Ein Klick auf
+          „Browserdaten/Cookies löschen" im Browser, ein Browserwechsel oder ein neues Gerät leert den Dienstplan
+          vollständig – ohne Sicherung unwiederbringlich. Personaldaten (Krankheit, Urlaub) sind DSGVO-sensibel –
+          lade die Sicherungsdatei nur an einem geschützten Ort ab.
+        </div>
       </div>
 
       <div className="karte">
