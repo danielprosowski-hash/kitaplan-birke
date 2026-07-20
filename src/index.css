@@ -1,18 +1,24 @@
 :root {
-  --bg: #f5f6f8;
-  --bg-karte: #ffffff;
-  --text: #1c1f26;
-  --text-sekundaer: #667085;
-  --rand: #dfe3e8;
-  --akzent: #2f6feb;
-  --akzent-bg: rgba(47, 111, 235, 0.1);
-  --gruen: #2f9e44;
-  --gruen-bg: rgba(47, 158, 68, 0.12);
-  --rot: #d92d20;
-  --rot-bg: rgba(217, 45, 32, 0.1);
-  --gelb: #f1c40f;
-  --radius: 8px;
-  font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --bg: #f6f2ea;
+  --bg-karte: #fffdf9;
+  --text: #2f2a22;
+  --text-sekundaer: #8a7c68;
+  --rand: #e6dcc8;
+  --akzent: #4b7a4e;
+  --akzent-dunkel: #3a6140;
+  --akzent-bg: rgba(75, 122, 78, 0.12);
+  --gruen: #4b7a4e;
+  --gruen-bg: rgba(75, 122, 78, 0.14);
+  --rot: #c1502e;
+  --rot-bg: rgba(193, 80, 46, 0.1);
+  --gelb: #d9a441;
+  --gelb-bg: rgba(217, 164, 65, 0.14);
+  --birke: #cfa76d;
+  --schatten: 0 2px 10px rgba(90, 70, 40, 0.06);
+  --schatten-hoch: 0 12px 32px rgba(60, 45, 20, 0.16);
+  --radius: 14px;
+  --radius-klein: 9px;
+  font-family: 'Segoe UI', -apple-system, Roboto, Helvetica, Arial, sans-serif;
   color-scheme: light;
 }
 
@@ -31,7 +37,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-size: 14px;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 button,
@@ -43,19 +49,23 @@ textarea {
 }
 
 h1 {
-  font-size: 22px;
+  font-size: 23px;
   margin: 0 0 4px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 h2 {
-  font-size: 15px;
-  margin: 18px 0 8px;
-  color: var(--text-sekundaer);
+  font-size: 13.5px;
+  margin: 20px 0 10px;
+  color: var(--akzent-dunkel);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.06em;
+  font-weight: 700;
 }
 h3 {
   margin: 0 0 8px;
-  font-size: 15px;
+  font-size: 15.5px;
+  font-weight: 700;
 }
 
 .lade-anzeige {
@@ -64,6 +74,7 @@ h3 {
   justify-content: center;
   height: 100vh;
   color: var(--text-sekundaer);
+  background: var(--bg);
 }
 
 /* --- Layout --- */
@@ -73,19 +84,19 @@ h3 {
 }
 
 .sidebar {
-  width: 220px;
+  width: 226px;
   flex: none;
-  background: var(--bg-karte);
+  background: linear-gradient(180deg, #f3ede0 0%, #ede4d0 100%);
   border-right: 1px solid var(--rand);
   overflow-y: auto;
-  padding: 12px 0;
+  padding: 14px 0;
   display: flex;
   flex-direction: column;
   min-height: 100%;
 }
 .sidebar-fusszeile {
   margin-top: auto;
-  padding: 14px 16px;
+  padding: 16px 18px;
   font-size: 11px;
   color: var(--text-sekundaer);
 }
@@ -93,51 +104,60 @@ h3 {
 .sidebar-titel {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 16px 16px;
-  font-weight: 700;
-  font-size: 16px;
+  gap: 9px;
+  padding: 6px 18px 18px;
+  font-weight: 800;
+  font-size: 16.5px;
+  color: var(--akzent-dunkel);
 }
 .sidebar-logo {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex: none;
+  background: var(--bg-karte);
+  border-radius: 9px;
+  box-shadow: var(--schatten);
 }
 .sidebar-logo svg {
   display: block;
 }
 
 .sidebar-gruppe-label {
-  font-size: 11px;
+  font-size: 10.5px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.07em;
   color: var(--text-sekundaer);
-  padding: 12px 16px 4px;
+  padding: 14px 18px 5px;
+  font-weight: 700;
 }
 
 .sidebar-eintrag {
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
+  gap: 9px;
+  width: calc(100% - 16px);
+  margin: 1px 8px;
   text-align: left;
   background: none;
   border: none;
-  padding: 8px 16px;
+  padding: 8px 10px;
   cursor: pointer;
-  border-radius: 0;
+  border-radius: var(--radius-klein);
   font-size: 13.5px;
+  color: var(--text);
+  transition: background 0.15s ease;
 }
 .sidebar-eintrag:hover {
-  background: var(--bg);
+  background: rgba(75, 122, 78, 0.08);
 }
 .sidebar-eintrag.aktiv {
-  background: var(--akzent-bg);
-  color: var(--akzent);
+  background: var(--akzent);
+  color: #fff;
   font-weight: 600;
+  box-shadow: var(--schatten);
 }
 .sidebar-warnpunkt {
   width: 7px;
@@ -150,7 +170,7 @@ h3 {
 .app-inhalt {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 32px 60px;
+  padding: 28px 34px 60px;
 }
 
 .view {
@@ -159,12 +179,12 @@ h3 {
 
 .view-untertitel {
   color: var(--text-sekundaer);
-  margin: 0 0 16px;
+  margin: 0 0 18px;
 }
 
 .erste-schritte {
   border-color: var(--akzent);
-  background: var(--akzent-bg);
+  background: linear-gradient(135deg, var(--akzent-bg), rgba(207, 167, 109, 0.12));
 }
 .erste-schritte-kopf {
   display: flex;
@@ -192,7 +212,7 @@ h3 {
   height: 20px;
   border-radius: 50%;
   background: var(--bg-karte);
-  border: 1px solid var(--akzent);
+  border: 1.5px solid var(--akzent);
   color: var(--akzent);
   font-size: 11px;
   font-weight: 700;
@@ -210,10 +230,10 @@ h3 {
 }
 
 .hinweisbanner {
-  background: #fff7e6;
-  border: 1px solid #f2c94c;
-  border-radius: var(--radius);
-  padding: 10px 14px;
+  background: var(--gelb-bg);
+  border: 1px solid var(--gelb);
+  border-radius: var(--radius-klein);
+  padding: 11px 15px;
   margin-bottom: 16px;
   font-size: 13.5px;
 }
@@ -221,7 +241,7 @@ h3 {
 .linkbutton {
   background: none;
   border: none;
-  color: var(--akzent);
+  color: var(--akzent-dunkel);
   cursor: pointer;
   padding: 0;
   text-decoration: underline;
@@ -232,14 +252,19 @@ h3 {
 button {
   background: var(--bg-karte);
   border: 1px solid var(--rand);
-  border-radius: 6px;
-  padding: 7px 12px;
+  border-radius: var(--radius-klein);
+  padding: 8px 14px;
   cursor: pointer;
   font-size: 13.5px;
   white-space: nowrap;
+  transition: border-color 0.15s ease, transform 0.05s ease, box-shadow 0.15s ease;
 }
 button:hover:not(:disabled) {
   border-color: var(--akzent);
+  box-shadow: var(--schatten);
+}
+button:active:not(:disabled) {
+  transform: translateY(1px);
 }
 button:disabled {
   opacity: 0.45;
@@ -249,6 +274,11 @@ button.primaer {
   background: var(--akzent);
   border-color: var(--akzent);
   color: #fff;
+  font-weight: 600;
+}
+button.primaer:hover:not(:disabled) {
+  background: var(--akzent-dunkel);
+  border-color: var(--akzent-dunkel);
 }
 button.gefahr {
   background: var(--rot-bg);
@@ -256,20 +286,29 @@ button.gefahr {
   color: var(--rot);
 }
 button.iconbutton {
-  padding: 4px 7px;
+  padding: 4px 8px;
   font-size: 12px;
+  border-radius: 7px;
 }
 
 input[type='text'],
 input[type='number'],
 input[type='date'],
+input[type='time'],
 select,
 textarea {
-  border: 1px solid var(--rand);
-  border-radius: 6px;
-  padding: 6px 9px;
+  border: 1.5px solid var(--rand);
+  border-radius: var(--radius-klein);
+  padding: 7px 10px;
   background: var(--bg-karte);
   width: 100%;
+  transition: border-color 0.15s ease;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--akzent);
 }
 textarea {
   width: 100%;
@@ -283,12 +322,14 @@ label {
   font-size: 12.5px;
   color: var(--text-sekundaer);
   margin-bottom: 10px;
+  font-weight: 600;
 }
 label input,
 label select,
 label textarea {
   color: var(--text);
   font-size: 13.5px;
+  font-weight: 400;
 }
 .checkbox-inline {
   flex-direction: row;
@@ -323,6 +364,7 @@ label textarea {
   color: var(--gruen);
   opacity: 0;
   transition: opacity 0.2s ease;
+  font-weight: 600;
 }
 .speicher-anzeige.sichtbar {
   opacity: 1;
@@ -332,24 +374,26 @@ label textarea {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
 }
 .spacer {
   flex: 1;
 }
 .wochen-label {
-  font-weight: 600;
+  font-weight: 700;
   min-width: 220px;
   text-align: center;
+  color: var(--akzent-dunkel);
 }
 
 .karte {
   background: var(--bg-karte);
   border: 1px solid var(--rand);
   border-radius: var(--radius);
-  padding: 16px 18px;
-  margin-bottom: 16px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+  box-shadow: var(--schatten);
 }
 
 .einfuegezeile {
@@ -365,7 +409,8 @@ label textarea {
 /* --- tables --- */
 .tabelle {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   background: var(--bg-karte);
   border: 1px solid var(--rand);
   border-radius: var(--radius);
@@ -373,17 +418,21 @@ label textarea {
 }
 .tabelle th,
 .tabelle td {
-  padding: 7px 10px;
+  padding: 9px 12px;
   border-bottom: 1px solid var(--rand);
   text-align: left;
   vertical-align: middle;
 }
 .tabelle th {
-  background: var(--bg);
+  background: rgba(75, 122, 78, 0.07);
   font-size: 11.5px;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-sekundaer);
+  letter-spacing: 0.04em;
+  color: var(--akzent-dunkel);
+  font-weight: 700;
+}
+.tabelle tbody tr:hover {
+  background: rgba(75, 122, 78, 0.04);
 }
 .tabelle tbody tr:last-child td {
   border-bottom: none;
@@ -392,7 +441,7 @@ label textarea {
 .tabelle select {
   border: 1px solid transparent;
   background: transparent;
-  padding: 4px 6px;
+  padding: 5px 7px;
 }
 .tabelle input:hover,
 .tabelle select:hover {
@@ -411,19 +460,23 @@ label textarea {
 }
 .erfolg-text {
   color: var(--gruen);
+  font-weight: 600;
 }
 .fehler-text {
   color: var(--rot);
+  font-weight: 600;
 }
 .feiertag-text {
-  color: #e8590c;
+  color: var(--birke);
+  font-weight: 600;
 }
 .badge {
   font-size: 11px;
   background: var(--bg);
   border-radius: 20px;
-  padding: 2px 8px;
+  padding: 3px 9px;
   color: var(--text-sekundaer);
+  font-weight: 600;
 }
 
 /* --- split view (Personal) --- */
@@ -441,6 +494,7 @@ label textarea {
   border: 1px solid var(--rand);
   border-radius: var(--radius);
   overflow: hidden;
+  box-shadow: var(--schatten);
 }
 .liste-scroll {
   flex: 1;
@@ -455,12 +509,12 @@ label textarea {
   background: none;
   border: none;
   border-bottom: 1px solid var(--rand);
-  padding: 10px 12px;
+  padding: 11px 14px;
   cursor: pointer;
   border-radius: 0;
 }
 .listen-eintrag:hover {
-  background: var(--bg);
+  background: rgba(75, 122, 78, 0.06);
 }
 .listen-eintrag.aktiv {
   background: var(--akzent-bg);
@@ -478,12 +532,13 @@ label textarea {
   font-weight: 700;
   font-size: 12px;
   min-width: 32px;
+  color: var(--akzent-dunkel);
 }
 .liste-fusszeile {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px;
+  padding: 11px;
   border-top: 1px solid var(--rand);
 }
 .split-detail {
@@ -491,8 +546,9 @@ label textarea {
   background: var(--bg-karte);
   border: 1px solid var(--rand);
   border-radius: var(--radius);
-  padding: 20px 24px;
+  padding: 22px 26px;
   overflow-y: auto;
+  box-shadow: var(--schatten);
 }
 .leerhinweis {
   color: var(--text-sekundaer);
@@ -504,7 +560,7 @@ label textarea {
 .modal-hintergrund {
   position: fixed;
   inset: 0;
-  background: rgba(20, 22, 28, 0.4);
+  background: rgba(47, 42, 34, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -512,12 +568,12 @@ label textarea {
 }
 .modal {
   background: var(--bg-karte);
-  border-radius: 10px;
+  border-radius: 16px;
   width: 420px;
   max-width: 92vw;
   max-height: 88vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--schatten-hoch);
 }
 .modal-breit {
   width: 640px;
@@ -526,23 +582,24 @@ label textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 18px 22px;
   border-bottom: 1px solid var(--rand);
 }
 .modal-kopf h2 {
   margin: 0;
   text-transform: none;
   color: var(--text);
-  font-size: 16px;
+  font-size: 16.5px;
+  font-weight: 700;
 }
 .modal-inhalt {
-  padding: 18px 20px 20px;
+  padding: 20px 22px 22px;
 }
 .modal-aktionen {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-top: 18px;
 }
 
 /* --- Wochenplan --- */
@@ -551,17 +608,17 @@ label textarea {
   align-items: center;
   gap: 10px;
   background: var(--akzent-bg);
-  border-radius: var(--radius);
-  padding: 8px 14px;
-  margin-bottom: 14px;
+  border-radius: var(--radius-klein);
+  padding: 9px 15px;
+  margin-bottom: 16px;
   font-size: 13px;
 }
 
 .hinweisliste {
   background: var(--rot-bg);
-  border-radius: var(--radius);
-  padding: 10px 14px;
-  margin-bottom: 14px;
+  border-radius: var(--radius-klein);
+  padding: 11px 15px;
+  margin-bottom: 16px;
 }
 .hinweiszeile {
   font-size: 13px;
@@ -569,6 +626,7 @@ label textarea {
 }
 .hinweiszeile.warnung {
   color: var(--rot);
+  font-weight: 600;
 }
 .hinweiszeile.kalenderhinweis {
   color: var(--text);
@@ -580,37 +638,41 @@ label textarea {
 .wochenraster {
   display: grid;
   grid-template-columns: repeat(7, minmax(150px, 1fr));
-  gap: 8px;
+  gap: 10px;
   overflow-x: auto;
 }
 .tagspalte {
   background: var(--bg-karte);
   border: 1px solid var(--rand);
   border-radius: var(--radius);
-  padding: 8px;
+  padding: 9px;
   min-height: 180px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  box-shadow: var(--schatten);
 }
 .tagspalte.frei {
   background: var(--bg);
+  box-shadow: none;
 }
 .tagspalte.drop-ziel {
   border-color: var(--akzent);
-  box-shadow: 0 0 0 2px var(--akzent-bg);
+  box-shadow: 0 0 0 3px var(--akzent-bg);
 }
 .tagspalte-kopf {
   display: flex;
   justify-content: space-between;
   font-size: 12.5px;
+  font-weight: 600;
 }
 .tagspalte-hinweis {
   font-size: 11.5px;
   color: var(--text-sekundaer);
 }
 .tagspalte-hinweis.feiertag {
-  color: #e8590c;
+  color: var(--birke);
+  font-weight: 600;
 }
 .tagspalte-kalender {
   display: flex;
@@ -620,16 +682,22 @@ label textarea {
 .tagspalte-plus {
   margin-top: auto;
   font-size: 12px;
-  padding: 4px 8px;
+  padding: 5px 9px;
   align-self: flex-start;
+  border-radius: 20px;
 }
 
 .dienstkarte {
   background: var(--akzent-bg);
-  border-radius: 6px;
-  padding: 6px 8px;
+  border-radius: var(--radius-klein);
+  padding: 7px 9px;
   cursor: grab;
   font-size: 12px;
+  border: 1px solid transparent;
+  transition: box-shadow 0.15s ease;
+}
+.dienstkarte:hover {
+  box-shadow: var(--schatten);
 }
 .dienstkarte.warnung {
   outline: 1.5px solid var(--rot);
@@ -650,9 +718,10 @@ label textarea {
 }
 .wochentag-knopf {
   width: 36px;
-  padding: 5px 0;
+  padding: 6px 0;
   text-align: center;
   font-size: 12px;
+  border-radius: 20px;
 }
 .wochentag-knopf.aktiv {
   background: var(--akzent);
@@ -665,7 +734,7 @@ label textarea {
   display: flex;
   gap: 14px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   font-size: 12.5px;
 }
 .kalender-legende-eintrag {
@@ -682,24 +751,29 @@ label textarea {
 .kalender-raster {
   display: grid;
   grid-template-columns: repeat(7, minmax(120px, 1fr));
-  gap: 6px;
+  gap: 8px;
 }
 .kalender-kopf {
   font-size: 11.5px;
   text-transform: uppercase;
-  color: var(--text-sekundaer);
+  color: var(--akzent-dunkel);
   text-align: center;
   padding: 4px 0;
+  font-weight: 700;
 }
 .kalender-zelle {
   background: var(--bg-karte);
   border: 1px solid var(--rand);
-  border-radius: 6px;
+  border-radius: var(--radius-klein);
   min-height: 92px;
-  padding: 6px;
+  padding: 7px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  transition: box-shadow 0.15s ease;
+}
+.kalender-zelle:hover {
+  box-shadow: var(--schatten);
 }
 .kalender-zelle.ausserhalb {
   background: var(--bg);
@@ -707,19 +781,22 @@ label textarea {
 }
 .kalender-zelle.heute {
   border-color: var(--akzent);
+  box-shadow: 0 0 0 2px var(--akzent-bg);
 }
 .kalender-zelle-kopf {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 12px;
+  font-weight: 600;
 }
 .kalender-plus {
   padding: 0 6px;
   font-size: 12px;
   line-height: 1.4;
+  border-radius: 20px;
   /* Immer sichtbar: auf Tablets/Touch gibt es kein Hover. */
-  opacity: 0.45;
+  opacity: 0.5;
 }
 .kalender-zelle:hover .kalender-plus {
   opacity: 1;
@@ -731,14 +808,15 @@ label textarea {
 }
 .kalender-chip {
   border: none;
-  border-radius: 4px;
+  border-radius: 5px;
   color: #fff;
   font-size: 10.5px;
-  padding: 2px 5px;
+  padding: 2px 6px;
   cursor: pointer;
+  font-weight: 600;
 }
 .kalender-chip.klein {
-  padding: 1px 4px;
+  padding: 1px 5px;
 }
 
 /* --- Wochenübersicht / Abdeckung --- */
@@ -752,31 +830,34 @@ label textarea {
 .uebersicht-tabelle th,
 .uebersicht-tabelle td {
   border: 1px solid var(--rand);
-  padding: 6px 8px;
+  padding: 7px 9px;
   vertical-align: top;
   font-size: 12.5px;
 }
 .uebersicht-tabelle th {
-  background: var(--bg);
+  background: rgba(75, 122, 78, 0.07);
   font-size: 11.5px;
+  color: var(--akzent-dunkel);
+  font-weight: 700;
 }
 .gruppen-label.krippe {
-  background: rgba(241, 196, 15, 0.12);
+  background: var(--gelb-bg);
 }
 .gruppen-label.kita {
-  background: rgba(47, 158, 68, 0.1);
+  background: var(--gruen-bg);
 }
 .zelle.krippe {
-  background: rgba(241, 196, 15, 0.05);
+  background: rgba(217, 164, 65, 0.06);
 }
 .zelle.kita {
-  background: rgba(47, 158, 68, 0.05);
+  background: rgba(75, 122, 78, 0.05);
 }
 .uebersicht-eintrag {
   white-space: nowrap;
 }
 .feiertag-spalte {
-  color: #e8590c;
+  color: var(--birke);
+  font-weight: 600;
 }
 
 .abdeckung-tabelle {
@@ -787,7 +868,7 @@ label textarea {
 .abdeckung-tabelle th,
 .abdeckung-tabelle td {
   border: 1px solid var(--rand);
-  padding: 8px;
+  padding: 9px;
   text-align: center;
   font-size: 12.5px;
 }
@@ -800,9 +881,9 @@ label textarea {
 .badge-ok {
   display: inline-block;
   background: var(--gruen-bg);
-  color: var(--gruen);
+  color: var(--akzent-dunkel);
   border-radius: 20px;
-  padding: 2px 8px;
+  padding: 2px 9px;
   margin: 1px;
   font-weight: 600;
 }
@@ -811,7 +892,7 @@ label textarea {
   background: var(--rot-bg);
   color: var(--rot);
   border-radius: 20px;
-  padding: 2px 8px;
+  padding: 2px 9px;
   font-weight: 600;
 }
 
@@ -824,14 +905,14 @@ label textarea {
   background: var(--bg);
 }
 .zeile-abwesend {
-  background: rgba(241, 196, 15, 0.1);
+  background: var(--gelb-bg);
 }
 .istzeiten-summe {
   display: flex;
   justify-content: flex-end;
   align-items: baseline;
   gap: 24px;
-  padding: 14px 4px;
+  padding: 16px 6px;
 }
 .istzeiten-summe > div {
   display: flex;
@@ -841,7 +922,7 @@ label textarea {
 .abrechnung-kennzahlen {
   display: flex;
   gap: 32px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 .abrechnung-kennzahlen > div {
   display: flex;
@@ -849,7 +930,8 @@ label textarea {
   gap: 4px;
 }
 .abrechnung-kennzahlen strong {
-  font-size: 18px;
+  font-size: 19px;
+  color: var(--akzent-dunkel);
 }
 
 /* --- Print --- */
