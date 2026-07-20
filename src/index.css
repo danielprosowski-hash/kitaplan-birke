@@ -646,7 +646,8 @@ label textarea {
   padding: 0 6px;
   font-size: 12px;
   line-height: 1.4;
-  opacity: 0;
+  /* Immer sichtbar: auf Tablets/Touch gibt es kein Hover. */
+  opacity: 0.45;
 }
 .kalender-zelle:hover .kalender-plus {
   opacity: 1;

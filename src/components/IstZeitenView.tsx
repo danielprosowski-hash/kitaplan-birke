@@ -79,7 +79,9 @@ export default function IstZeitenView() {
             <tbody>
               {tage.map((tag) => (
                 <IstZeitZeile
-                  key={tag}
+                  // Person mit im Key: sonst behält React beim Personenwechsel
+                  // die alten Eingabefelder samt fremder Zeiten.
+                  key={`${person.id}-${tag}`}
                   tag={tag}
                   person={person}
                   istZeit={(alleIstZeiten ?? []).find((i) => i.mitarbeiterId === person.id && i.datum === tag) ?? null}
