@@ -1,4 +1,5 @@
 import { BEREICHE, type Bereich } from '../lib/bereiche'
+import BirkeIcon from './BirkeIcon'
 
 interface Props {
   aktiv: Bereich
@@ -12,7 +13,9 @@ export default function Sidebar({ aktiv, onWechsel, sicherungFaellig }: Props) {
   return (
     <nav className="sidebar no-print">
       <div className="sidebar-titel">
-        <span className="sidebar-logo">KP</span>
+        <span className="sidebar-logo">
+          <BirkeIcon size={22} />
+        </span>
         <span>KitaPlan</span>
       </div>
       {GRUPPEN_REIHENFOLGE.map((gruppe) => (
