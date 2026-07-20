@@ -11,6 +11,7 @@ export default function AbwesenheitenView() {
     [],
   )
   const mitarbeitende = useLiveQuery(() => db.mitarbeiter.orderBy('name').toArray(), [], [])
+  const alleFeiertage = useLiveQuery(() => db.feiertage.toArray(), [], [])
 
   const [von, setVon] = useState(isoHeute())
   const [bis, setBis] = useState(isoHeute())
@@ -19,24 +20,47 @@ export default function AbwesenheitenView() {
   const [bemerkung, setBemerkung] = useState('')
   const [filterPerson, setFilterPerson] = useState<number | ''>('')
   const [filterArt, setFilterArt] = useState<Abwesenheitsart | ''>('')
+  const [meldung, setMeldung] = useState<string | null>(null)
 
   const gefiltert = (abwesenheiten ?? []).filter(
     (a) => (filterPerson === '' || a.mitarbeiterId === filterPerson) && (filterArt === '' || a.art === filterArt),
   )
   const nameVon = (id: number) => mitarbeitende?.find((m) => m.id === id)
+  const feiertagsDaten = new Set((alleFeiertage ?? []).map((f) => f.datum))
 
   async function hinzufuegen() {
     if (personId === '' || bis < von) return
+    const vorhandeneDaten = new Set(
+      (abwesenheiten ?? []).filter((a) => a.mitarbeiterId === personId).map((a) => a.datum),
+    )
     let tag = von
     const eintraege: { datum: string; art: Abwesenheitsart; bemerkung: string; mitarbeiterId: number }[] = []
+    let uebersprungen = 0
     while (tag <= bis) {
-      if (!istWochenende(tag)) {
+      if (istWochenende(tag) || feiertagsDaten.has(tag)) {
+        // Wochenenden und Feiertage: nichts anzulegen, kein "übersprungen"-Hinweis nötig.
+      } else if (vorhandeneDaten.has(tag)) {
+        uebersprungen++
+      } else {
         eintraege.push({ datum: tag, art, bemerkung, mitarbeiterId: personId })
+        vorhandeneDaten.add(tag)
       }
       tag = addTage(tag, 1)
     }
-    await db.abwesenheiten.bulkAdd(eintraege)
+    if (eintraege.length > 0) await db.abwesenheiten.bulkAdd(eintraege)
     setBemerkung('')
+    if (uebersprungen > 0) {
+      setMeldung(
+        `${eintraege.length} Eintrag/Einträge angelegt, ${uebersprungen} übersprungen (an diesen Tagen war für diese Person schon eine Abwesenheit erfasst).`,
+      )
+    } else {
+      setMeldung(null)
+    }
+  }
+
+  async function loeschen(id: number) {
+    if (!confirm('Diese Abwesenheit löschen?')) return
+    await db.abwesenheiten.delete(id)
   }
 
   return (
@@ -83,7 +107,11 @@ export default function AbwesenheitenView() {
             Hinzufügen
           </button>
         </div>
-        <p className="hinweis-klein">Wochenenden werden beim Anlegen automatisch übersprungen.</p>
+        <p className="hinweis-klein">
+          Wochenenden und Feiertage werden beim Anlegen automatisch übersprungen; ebenso Tage, an denen für diese
+          Person schon eine Abwesenheit erfasst ist.
+        </p>
+        {meldung && <p className="hinweis-klein" style={{ marginTop: 4 }}>{meldung}</p>}
       </div>
 
       <div className="formular-zeile" style={{ margin: '12px 0' }}>
@@ -140,7 +168,7 @@ export default function AbwesenheitenView() {
                 <td className="hinweis-klein">{info.grundlage}</td>
                 <td>{a.bemerkung}</td>
                 <td>
-                  <button className="iconbutton" onClick={() => db.abwesenheiten.delete(a.id!)}>
+                  <button className="iconbutton" onClick={() => loeschen(a.id!)}>
                     ✕
                   </button>
                 </td>

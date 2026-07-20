@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import type { IstZeit, Mitarbeiter } from '../types'
+import type { Abwesenheitsart, IstZeit, Mitarbeiter } from '../types'
+import { abwesenheitsartInfo } from '../types'
 import { addMonate, formatDatum, formatMonatJahr, formatZeit, isoHeute, istWochenende, monatsTage, parseZeit, stundenText, wochentagKurz } from '../lib/calendar'
 import { arbZGPause, istZeitNetto, tagesSoll } from '../lib/dienst'
 
@@ -29,8 +30,7 @@ export default function IstZeitenView() {
       sSoll += soll
       const abw = (alleAbwesenheiten ?? []).find((a) => a.mitarbeiterId === person.id && a.datum === tag)
       if (abw) {
-        const gutschrift = ['U', 'RT', 'UWT', 'K', 'FB'].includes(abw.art)
-        if (gutschrift) sIst += soll
+        if (abwesenheitsartInfo(abw.art).schreibtSollAlsIstGut) sIst += soll
       } else {
         const iz = (alleIstZeiten ?? []).find((i) => i.mitarbeiterId === person.id && i.datum === tag)
         if (iz) sIst += istZeitNetto(iz)
@@ -123,15 +123,22 @@ function IstZeitZeile({
 }) {
   const [von, setVon] = useState(formatZeit(istZeit?.vonMinuten))
   const [bis, setBis] = useState(formatZeit(istZeit?.bisMinuten))
-  const gesperrt = istWochenende(tag) || !!feiertagName || !!abwesenheit
+  // Wochenende/Feiertag: kein Soll, keine Eingabe möglich. Abwesenheit: auch
+  // keine Zeiteingabe, aber Soll bleibt bestehen (siehe unten) – das muss zur
+  // Monatssumme und zur Abrechnung passen, sonst zeigen die Ansichten
+  // unterschiedliche Stunden für denselben Monat.
+  const kalenderOhneSoll = istWochenende(tag) || !!feiertagName
+  const gesperrt = kalenderOhneSoll || !!abwesenheit
 
   const vMin = parseZeit(von)
   const bMin = parseZeit(bis)
   const brutto = vMin != null && bMin != null && bMin > vMin ? (bMin - vMin) / 60 : 0
   const pause = brutto > 0 ? arbZGPause(brutto) : 0
   const netto = Math.max(0, brutto - pause)
-  const soll = gesperrt ? 0 : tagesSoll(person)
-  const diff = netto - soll
+  const soll = kalenderOhneSoll ? 0 : tagesSoll(person)
+  const abwesenheitInfo = abwesenheit ? abwesenheitsartInfo(abwesenheit.art as Abwesenheitsart) : null
+  const ist = abwesenheitInfo ? (abwesenheitInfo.schreibtSollAlsIstGut ? soll : 0) : netto
+  const diff = ist - soll
 
   const bemerkung = feiertagName ?? (istWochenende(tag) ? 'Wochenende' : abwesenheit ? `${abwesenheit.art}` : '')
 
@@ -177,7 +184,7 @@ function IstZeitZeile({
       <td className="zahl">{brutto > 0 ? stundenText(brutto) : ''}</td>
       <td className="zahl">{pause > 0 ? stundenText(pause) : ''}</td>
       <td className="zahl" style={{ fontWeight: 600 }}>
-        {netto > 0 ? stundenText(netto) : ''}
+        {ist > 0 ? stundenText(ist) : ''}
       </td>
       <td className="zahl">{soll > 0 ? stundenText(soll) : ''}</td>
       <td className={`zahl ${diff >= 0 ? 'erfolg-text' : 'fehler-text'}`}>

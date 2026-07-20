@@ -21,7 +21,8 @@ Sie ist auch aus der laufenden App heraus verlinkt (Backup & Einstellungen).
 
 - **Personal** – Mitarbeitende anlegen, bearbeiten, ausscheiden lassen
 - **Gruppen** – acht Slots, Krippe oder Kita, Mindestbesetzung pro Slot
-- **Feiertage** – bundesweite Liste 2026 vorbefüllt, ergänzbar
+- **Feiertage** – werden automatisch berechnet (Ostern-Formel + Bundesland,
+  z. B. Reformationstag), laufen also nie aus; manuell ergänzbar
 - **Abwesenheiten** – alle neun Kürzel (U, RT, UWT, K, FB, F, Ue, MZ, EZ)
   mit korrekter Verrechnungslogik
 - **Kalender** – Urlaubswünsche, Frei-Wünsche, Termine und Fortbildungen

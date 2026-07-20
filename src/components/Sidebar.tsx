@@ -1,5 +1,4 @@
 import { BEREICHE, type Bereich } from '../lib/bereiche'
-import BirkeIcon from './BirkeIcon'
 
 interface Props {
   aktiv: Bereich
@@ -14,7 +13,7 @@ export default function Sidebar({ aktiv, onWechsel, sicherungFaellig }: Props) {
     <nav className="sidebar no-print">
       <div className="sidebar-titel">
         <span className="sidebar-logo">
-          <BirkeIcon size={22} />
+          <img src="./logo.png" alt="" width={28} height={28} />
         </span>
         <span>
           Kitaplan Birke

@@ -1,11 +1,15 @@
 import { db } from './db'
+import { berechneFeiertage } from '../lib/feiertage'
 
-/** Beim ersten Start: acht Gruppen-Slots (inaktiv), Feiertage 2026 (bundesweit)
- * und die sechs Pflicht-Randdienste vorbefüllen. */
+const STANDARD_BUNDESLAND = 'ST'
+
+/** Beim ersten Start: acht Gruppen-Slots (inaktiv) und die sechs
+ * Pflicht-Randdienste vorbefüllen, außerdem Einstellungen anlegen. */
 export async function seedWennNoetig() {
   await seedGruppen()
-  await seedFeiertage2026()
   await seedRanddienste()
+  await seedEinstellungen()
+  await feiertageFuerJahreSicherstellen()
 }
 
 async function seedGruppen() {
@@ -39,21 +43,35 @@ async function seedRanddienste() {
   }
 }
 
-async function seedFeiertage2026() {
-  const anzahl = await db.feiertage.count()
+async function seedEinstellungen() {
+  const anzahl = await db.einstellungen.count()
   if (anzahl > 0) return
-  const liste: [string, string][] = [
-    ['2026-01-01', 'Neujahr'],
-    ['2026-04-03', 'Karfreitag'],
-    ['2026-04-06', 'Ostermontag'],
-    ['2026-05-01', 'Tag der Arbeit'],
-    ['2026-05-14', 'Christi Himmelfahrt'],
-    ['2026-05-25', 'Pfingstmontag'],
-    ['2026-10-03', 'Tag der Deutschen Einheit'],
-    ['2026-12-25', '1. Weihnachtstag'],
-    ['2026-12-26', '2. Weihnachtstag'],
-  ]
-  for (const [datum, name] of liste) {
-    await db.feiertage.add({ datum, name, bundesland: 'bundesweit' })
+  await db.einstellungen.add({ bundesland: STANDARD_BUNDESLAND })
+}
+
+export async function aktuellesBundesland(): Promise<string> {
+  const eintrag = await db.einstellungen.toCollection().first()
+  return eintrag?.bundesland ?? STANDARD_BUNDESLAND
+}
+
+/** Ergänzt automatisch berechnete Feiertage für das laufende und das
+ * nächste Jahr, ohne bereits vorhandene (auch manuell angelegte) Tage
+ * zu verdoppeln. Wird bei jedem Start aufgerufen, damit die Feiertage nie
+ * "auslaufen" (früher war nur 2026 fest hinterlegt). */
+export async function feiertageFuerJahreSicherstellen(jahre?: number[]): Promise<number> {
+  const bundesland = await aktuellesBundesland()
+  const heuteJahr = new Date().getFullYear()
+  const zielJahre = jahre ?? [heuteJahr, heuteJahr + 1]
+  const vorhandeneDaten = new Set((await db.feiertage.toArray()).map((f) => f.datum))
+  const neue: { datum: string; name: string; bundesland: string }[] = []
+  for (const jahr of zielJahre) {
+    for (const f of berechneFeiertage(jahr, bundesland)) {
+      if (!vorhandeneDaten.has(f.datum)) {
+        neue.push({ ...f, bundesland })
+        vorhandeneDaten.add(f.datum)
+      }
+    }
   }
+  if (neue.length > 0) await db.feiertage.bulkAdd(neue)
+  return neue.length
 }

@@ -16,6 +16,11 @@ export interface Snapshot {
   json: string
 }
 
+export interface Einstellungen {
+  id?: number
+  bundesland: string // Code aus BUNDESLAENDER, steuert die automatische Feiertagsberechnung
+}
+
 /**
  * IndexedDB-Datenbank der App (über Dexie). Jede Änderung wird sofort
  * persistiert – das entspricht dem SwiftData-Store der Mac-App, nur dass
@@ -31,6 +36,7 @@ class KitaPlanDB extends Dexie {
   randdienste!: Table<Randdienst, number>
   kalender!: Table<KalenderEintrag, number>
   snapshots!: Table<Snapshot, number>
+  einstellungen!: Table<Einstellungen, number>
 
   constructor() {
     super('KitaPlanDB')
@@ -44,6 +50,9 @@ class KitaPlanDB extends Dexie {
       randdienste: '++id, &beginnMinuten, reihenfolge',
       kalender: '++id, datum, mitarbeiterId',
       snapshots: '++id, erstelltAm',
+    })
+    this.version(2).stores({
+      einstellungen: '++id',
     })
   }
 }
@@ -59,6 +68,7 @@ export const DATENTABELLEN = [
   'istZeiten',
   'randdienste',
   'kalender',
+  'einstellungen',
 ] as const
 
 export type Datentabelle = (typeof DATENTABELLEN)[number]

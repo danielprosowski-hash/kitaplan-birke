@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import type { Dienst, Mitarbeiter, Randdienst } from '../types'
+import type { Dienst, Feiertag, Mitarbeiter, Randdienst } from '../types'
 import { addTage, formatDatum, isoHeute, wochentagKurz, wocheninfo } from '../lib/calendar'
 import { pruefeAbdeckung } from '../lib/abdeckung'
 
@@ -9,17 +9,21 @@ export default function AbdeckungView() {
   const randdienste = useLiveQuery(() => db.randdienste.orderBy('reihenfolge').toArray(), [], [] as Randdienst[])
   const dienste = useLiveQuery(() => db.dienste.toArray(), [], [] as Dienst[])
   const mitarbeitende = useLiveQuery(() => db.mitarbeiter.toArray(), [], [] as Mitarbeiter[])
+  const alleFeiertage = useLiveQuery(() => db.feiertage.toArray(), [], [] as Feiertag[])
   const [referenzdatum, setReferenzdatum] = useState(isoHeute())
 
   const woche = useMemo(() => wocheninfo(referenzdatum), [referenzdatum])
   const aktiv = (randdienste ?? []).filter((r) => r.aktiv)
   const echteDienste = (dienste ?? []).filter((d) => !d.istVorlage)
   const mitarbeiterNachId = new Map((mitarbeitende ?? []).map((m) => [m.id!, m]))
+  const feiertagNachDatum = new Map((alleFeiertage ?? []).map((f) => [f.datum, f]))
+  // An Feiertagen ist die Kita geschlossen – dort sind Randdienste nicht zu besetzen.
+  const zuPruefendeTage = woche.werktage.filter((tag) => !feiertagNachDatum.has(tag))
 
   const belegung = useMemo(
-    () => pruefeAbdeckung(aktiv, echteDienste, woche.werktage, mitarbeiterNachId),
+    () => pruefeAbdeckung(aktiv, echteDienste, zuPruefendeTage, mitarbeiterNachId),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [randdienste, dienste, woche, mitarbeitende],
+    [randdienste, dienste, woche, mitarbeitende, alleFeiertage],
   )
 
   const alleZellen = Array.from(belegung.values()).flat()
@@ -54,6 +58,20 @@ export default function AbdeckungView() {
             </thead>
             <tbody>
               {woche.werktage.map((tag) => {
+                const feiertag = feiertagNachDatum.get(tag)
+                if (feiertag) {
+                  return (
+                    <tr key={tag}>
+                      <td>
+                        <strong>{wochentagKurz(tag)}</strong>
+                        <div className="hinweis-klein">{formatDatum(tag)}</div>
+                      </td>
+                      <td colSpan={aktiv.length} className="hinweis-klein feiertag-text">
+                        Geschlossen – {feiertag.name}
+                      </td>
+                    </tr>
+                  )
+                }
                 const zellen = belegung.get(tag) ?? []
                 const alleBesetzt = zellen.every((z) => z.besetztVon.length > 0)
                 return (

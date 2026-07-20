@@ -53,6 +53,9 @@ export default function WochenplanView() {
     if (!gruppe) return []
     const hinweise: string[] = []
     for (const tag of woche.werktage) {
+      // An Feiertagen ist die Einrichtung geschlossen – Kernzeit-/Pausen-
+      // Warnungen wären hier nur Lärm, den niemand beheben kann.
+      if (feiertagNachDatum.has(tag)) continue
       const dienste = (alleDienste ?? []).filter((d) => !d.istVorlage && d.gruppenSlot === gruppe.slot && d.datum === tag)
       const defizit = kernzeitDefizit(dienste, gruppe.mindestbesetzung)
       if (defizit > 0) {
@@ -66,7 +69,7 @@ export default function WochenplanView() {
       }
     }
     return hinweise
-  }, [gruppe, woche, alleDienste, mitarbeiterNachId])
+  }, [gruppe, woche, alleDienste, mitarbeiterNachId, feiertagNachDatum])
 
   // --- Kalender-Erinnerungen der Woche (Wünsche/Termine) ---
   const kalenderHinweise = useMemo(() => {

@@ -4,7 +4,35 @@ import { arbZGPause, dienstBrutto, dienstNetto } from '../dienst'
 import { kernzeitDefizit, pauseFehlt } from '../pruefungen'
 import { berechneTage, summen } from '../abrechnung'
 import { baueUebernahme, baueVorlage } from '../wochenvorlage'
+import { berechneFeiertage } from '../feiertage'
 import type { Dienst, Mitarbeiter } from '../../types'
+
+describe('feiertage', () => {
+  it('berechnet die beweglichen Feiertage 2026 korrekt (Ostersonntag: 5. April 2026)', () => {
+    const liste = berechneFeiertage(2026, 'ST')
+    const nach = (name: string) => liste.find((f) => f.name === name)?.datum
+    expect(nach('Karfreitag')).toBe('2026-04-03')
+    expect(nach('Ostermontag')).toBe('2026-04-06')
+    expect(nach('Christi Himmelfahrt')).toBe('2026-05-14')
+    expect(nach('Pfingstmontag')).toBe('2026-05-25')
+  })
+
+  it('berücksichtigt den Reformationstag für Sachsen-Anhalt, aber nicht für Bayern', () => {
+    expect(berechneFeiertage(2026, 'ST').some((f) => f.name === 'Reformationstag')).toBe(true)
+    expect(berechneFeiertage(2026, 'BY').some((f) => f.name === 'Reformationstag')).toBe(false)
+  })
+
+  it('berücksichtigt Fronleichnam nur in den betreffenden Bundesländern', () => {
+    expect(berechneFeiertage(2026, 'BY').some((f) => f.name === 'Fronleichnam')).toBe(true)
+    expect(berechneFeiertage(2026, 'ST').some((f) => f.name === 'Fronleichnam')).toBe(false)
+  })
+
+  it('liefert für jedes Jahr die neun bundesweiten Feiertage, unabhängig vom Bundesland', () => {
+    const liste2030 = berechneFeiertage(2030, 'HH')
+    expect(liste2030.length).toBeGreaterThanOrEqual(9)
+    expect(liste2030.some((f) => f.name === 'Neujahr')).toBe(true)
+  })
+})
 
 describe('calendar', () => {
   it('2026-01-05 ist laut Kalender ein Montag (ISO-Wochentag 1 = Montag)', () => {
