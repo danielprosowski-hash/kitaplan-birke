@@ -1,6 +1,7 @@
 export type Bereich =
   | 'personal'
   | 'gruppen'
+  | 'dienstarten'
   | 'feiertage'
   | 'abwesenheiten'
   | 'kalender'
@@ -20,6 +21,7 @@ export interface BereichInfo {
 export const BEREICHE: BereichInfo[] = [
   { id: 'personal', label: 'Personal', gruppe: 'Stammdaten' },
   { id: 'gruppen', label: 'Gruppen', gruppe: 'Stammdaten' },
+  { id: 'dienstarten', label: 'Dienstarten', gruppe: 'Stammdaten' },
   { id: 'feiertage', label: 'Feiertage', gruppe: 'Stammdaten' },
   { id: 'abwesenheiten', label: 'Abwesenheiten', gruppe: 'Stammdaten' },
   { id: 'kalender', label: 'Kalender', gruppe: 'Planung' },

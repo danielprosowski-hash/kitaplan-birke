@@ -29,9 +29,15 @@ Sie ist auch aus der laufenden App heraus verlinkt (Backup & Einstellungen).
   vorab eintragen; erscheinen als Erinnerung im Wochenplan der
   jeweiligen Woche
 - **Wochenplan** – pro Gruppe eine Woche im Raster, Dienste anlegen,
-  bearbeiten und per Drag-and-Drop verschieben. Live-Warnungen für
-  Kernzeit-Unterbesetzung (9–14 Uhr) und fehlende Pause ab 6 Stunden.
-  Standard-Woche als Vorlage speichern und auf andere Wochen übernehmen.
+  bearbeiten und per Drag-and-Drop verschieben. Stundenkonto (Soll/Ist je
+  Person, gruppenübergreifend) immer sichtbar. Live-Warnungen für
+  Kernzeit-Unterbesetzung (9–14 Uhr), fehlende Pause ab 6 Stunden und
+  gruppenübergreifende Doppelverplanung; abwesende/ausgeschiedene Personen
+  werden beim Zuweisen ausgegraut. Schnellauswahl-Knöpfe für wiederkehrende
+  Dienstarten. Standard-Woche als Vorlage speichern und auf andere Wochen
+  übernehmen.
+- **Dienstarten** – wiederkehrende Schichtmuster verwalten (Bezeichnung,
+  Zeiten, Pause), erscheinen im Wochenplan als Schnellauswahl.
 - **Wochenübersicht** – Read-Only-Ansicht aller aktiven Gruppen einer Woche
 - **Abdeckung** – prüft, ob alle Pflicht-Randdienste besetzt sind
 - **Ist-Zeiten** – pro Person und Monat, automatischer ArbZG-Pausenabzug,

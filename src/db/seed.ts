@@ -8,6 +8,7 @@ const STANDARD_BUNDESLAND = 'ST'
 export async function seedWennNoetig() {
   await seedGruppen()
   await seedRanddienste()
+  await seedDienstarten()
   await seedEinstellungen()
   await feiertageFuerJahreSicherstellen()
 }
@@ -40,6 +41,29 @@ async function seedRanddienste() {
   for (let i = 0; i < liste.length; i++) {
     const [beginnMinuten, bezeichnung] = liste[i]
     await db.randdienste.add({ beginnMinuten, bezeichnung, reihenfolge: i, aktiv: true })
+  }
+}
+
+async function seedDienstarten() {
+  const anzahl = await db.dienstarten.count()
+  if (anzahl > 0) return
+  const liste: [string, number, number, number][] = [
+    ['Frühdienst', 6 * 60, 13 * 60 + 30, 0.5],
+    ['Regeldienst', 8 * 60, 15 * 60, 0.5],
+    ['Mitteldienst', 9 * 60, 16 * 60, 0.5],
+    ['Spätdienst', 9 * 60 + 30, 17 * 60, 0.5],
+  ]
+  for (let i = 0; i < liste.length; i++) {
+    const [bezeichnung, beginn1Minuten, ende1Minuten, pauseStunden] = liste[i]
+    await db.dienstarten.add({
+      bezeichnung,
+      beginn1Minuten,
+      ende1Minuten,
+      beginn2Minuten: null,
+      ende2Minuten: null,
+      pauseStunden,
+      reihenfolge: i,
+    })
   }
 }
 

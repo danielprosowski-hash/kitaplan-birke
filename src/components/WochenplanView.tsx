@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import type { Abwesenheit, Dienst, Feiertag, Gruppe, KalenderEintrag, Mitarbeiter } from '../types'
-import { KALENDER_FARBEN } from '../types'
+import type { Abwesenheit, Dienst, Dienstart, Feiertag, Gruppe, KalenderEintrag, Mitarbeiter } from '../types'
+import { KALENDER_FARBEN, abwesenheitsartInfo } from '../types'
 import { addTage, formatDatum, formatZeit, isoHeute, parseZeit, stundenText, wochentagKurz, wocheninfo } from '../lib/calendar'
-import { dienstNetto, dienstBrutto } from '../lib/dienst'
+import { dienstNetto, dienstBrutto, istAktiv } from '../lib/dienst'
 import { kernzeitDefizit, pauseFehlt, findeUeberschneidungen } from '../lib/pruefungen'
 import { berechneWochenkonto } from '../lib/stundenkonto'
 import { baueUebernahme, baueVorlage } from '../lib/wochenvorlage'
@@ -29,6 +29,7 @@ export default function WochenplanView() {
   const alleFeiertage = useLiveQuery(() => db.feiertage.toArray(), [], [] as Feiertag[])
   const alleKalender = useLiveQuery(() => db.kalender.toArray(), [], [] as KalenderEintrag[])
   const alleAbwesenheiten = useLiveQuery(() => db.abwesenheiten.toArray(), [], [] as Abwesenheit[])
+  const alleDienstarten = useLiveQuery(() => db.dienstarten.orderBy('reihenfolge').toArray(), [], [] as Dienstart[])
 
   const [gewaehlterSlot, setGewaehlterSlot] = useState<number | null>(null)
   const [referenzdatum, setReferenzdatum] = useState(isoHeute())
@@ -43,6 +44,8 @@ export default function WochenplanView() {
   const woche = useMemo(() => wocheninfo(referenzdatum), [referenzdatum])
 
   const mitarbeiterNachId = useMemo(() => new Map((alleMitarbeiter ?? []).map((m) => [m.id!, m])), [alleMitarbeiter])
+  // Ausgeschiedene Personen sollen beim Neuanlegen/Verschieben nicht mehr auswählbar sein.
+  const aktiveMitarbeiter = useMemo(() => (alleMitarbeiter ?? []).filter((m) => istAktiv(m)), [alleMitarbeiter])
   const feiertagNachDatum = useMemo(() => new Map((alleFeiertage ?? []).map((f) => [f.datum, f])), [alleFeiertage])
 
   function zeige(msg: string) {
@@ -115,6 +118,7 @@ export default function WochenplanView() {
   // --- Standard-Woche ---
   const vorlagenAnzahl = (alleDienste ?? []).filter((d) => d.istVorlage).length
   const diensteInZielwoche = (alleDienste ?? []).filter((d) => !d.istVorlage && woche.alleTage.includes(d.datum)).length
+  const diensteFuerGruppeInWoche = gruppe ? wochendienste.filter((d) => d.gruppenSlot === gruppe.slot).length : 0
 
   async function speichereAlsVorlage() {
     const neueVorlage = baueVorlage(woche, alleDienste ?? [])
@@ -237,6 +241,23 @@ export default function WochenplanView() {
         <div className="leerhinweis">Bitte eine aktive Gruppe wählen. Gruppen werden unter „Gruppen" aktiviert.</div>
       ) : (
         <>
+          {diensteFuerGruppeInWoche === 0 && (
+            <div className="karte einstiegs-karte">
+              <h3>Diese Woche ist für {gruppe.name} noch leer</h3>
+              <p className="hinweis-klein" style={{ marginBottom: vorlagenAnzahl > 0 ? 10 : 0 }}>
+                {vorlagenAnzahl > 0
+                  ? 'Am schnellsten geht es mit der gespeicherten Standard-Woche, die dann direkt für alle Gruppen der Woche gilt.'
+                  : 'Lege unten Dienste über „+ Dienst" an einem Tag an, oder speichere zuerst in einer bereits geplanten Woche eine Standard-Woche als Vorlage.'}
+                {kalenderHinweise.length > 0 && ` Es gibt außerdem ${kalenderHinweise.length} offene Wunsch/Termin-Eintrag(e) für diese Woche – siehe unten.`}
+              </p>
+              {vorlagenAnzahl > 0 && (
+                <button className="primaer" onClick={() => setZeigeUebernehmenDialog(true)}>
+                  Standard-Woche übernehmen
+                </button>
+              )}
+            </div>
+          )}
+
           {(pruefHinweise.length > 0 || kalenderHinweise.length > 0) && (
             <div className="hinweisliste">
               {pruefHinweise.map((h, i) => (
@@ -253,6 +274,12 @@ export default function WochenplanView() {
                 </div>
               ))}
             </div>
+          )}
+
+          {diensteFuerGruppeInWoche > 0 && pruefHinweise.length === 0 && ueberschneidungen.length === 0 && (
+            <p className="erfolg-text" style={{ margin: '0 0 12px' }}>
+              ✓ Kernzeit besetzt, Pausen eingehalten, keine Doppelverplanung gefunden.
+            </p>
           )}
 
           <p className="hinweis-klein" style={{ margin: '0 0 8px' }}>
@@ -283,6 +310,7 @@ export default function WochenplanView() {
         <DienstBearbeitenSheet
           dienst={bearbeitenDienst}
           mitarbeitende={alleMitarbeiter ?? []}
+          abwesenheiten={alleAbwesenheiten ?? []}
           onSchliessen={() => setBearbeitenDienst(null)}
         />
       )}
@@ -290,7 +318,9 @@ export default function WochenplanView() {
         <DienstNeuSheet
           datum={neuFuerTag}
           gruppe={gruppe}
-          mitarbeitende={alleMitarbeiter ?? []}
+          mitarbeitende={aktiveMitarbeiter}
+          abwesenheiten={alleAbwesenheiten ?? []}
+          dienstarten={alleDienstarten ?? []}
           onSchliessen={() => setNeuFuerTag(null)}
         />
       )}
@@ -480,11 +510,15 @@ function DienstNeuSheet({
   datum,
   gruppe,
   mitarbeitende,
+  abwesenheiten,
+  dienstarten,
   onSchliessen,
 }: {
   datum: string
   gruppe: Gruppe
   mitarbeitende: Mitarbeiter[]
+  abwesenheiten: Abwesenheit[]
+  dienstarten: Dienstart[]
   onSchliessen: () => void
 }) {
   const [personId, setPersonId] = useState<number | ''>('')
@@ -494,6 +528,8 @@ function DienstNeuSheet({
   const [ende2, setEnde2] = useState('')
   const [pause, setPause] = useState(0.5)
   const [zusatzTage, setZusatzTage] = useState<Set<number>>(new Set())
+
+  const abwesenheitAmTag = (mitarbeiterId: number) => abwesenheiten.find((a) => a.mitarbeiterId === mitarbeiterId && a.datum === datum)
 
   const b1 = parseZeit(beginn1)
   const e1 = parseZeit(ende1)
@@ -523,13 +559,39 @@ function DienstNeuSheet({
         Person
         <select value={personId} onChange={(e) => setPersonId(e.target.value === '' ? '' : Number(e.target.value))} autoFocus>
           <option value="">– wählen –</option>
-          {mitarbeitende.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.kuerzel} – {m.name}
-            </option>
-          ))}
+          {mitarbeitende.map((m) => {
+            const abw = abwesenheitAmTag(m.id!)
+            return (
+              <option key={m.id} value={m.id} disabled={!!abw}>
+                {m.kuerzel} – {m.name}
+                {abw ? ` (${abwesenheitsartInfo(abw.art).bezeichnung})` : ''}
+              </option>
+            )
+          })}
         </select>
       </label>
+      {dienstarten.length > 0 && (
+        <div className="feldanzeige">
+          <span className="hinweis-klein">Schnellauswahl</span>
+          <div className="dienstarten-knopfreihe">
+            {dienstarten.map((da) => (
+              <button
+                key={da.id}
+                type="button"
+                onClick={() => {
+                  setBeginn1(formatZeit(da.beginn1Minuten))
+                  setEnde1(formatZeit(da.ende1Minuten))
+                  setBeginn2(formatZeit(da.beginn2Minuten))
+                  setEnde2(formatZeit(da.ende2Minuten))
+                  setPause(da.pauseStunden)
+                }}
+              >
+                {da.bezeichnung} · {formatZeit(da.beginn1Minuten)}–{formatZeit(da.ende1Minuten)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="formular-zeile">
         <label>
           Beginn 1
@@ -571,15 +633,18 @@ function DienstNeuSheet({
 function DienstBearbeitenSheet({
   dienst,
   mitarbeitende,
+  abwesenheiten,
   onSchliessen,
 }: {
   dienst: Dienst
   mitarbeitende: Mitarbeiter[]
+  abwesenheiten: Abwesenheit[]
   onSchliessen: () => void
 }) {
   const woche = wocheninfo(dienst.datum)
   const [personId, setPersonId] = useState<number | ''>(dienst.mitarbeiterId ?? '')
   const [datum, setDatum] = useState(dienst.datum)
+  const abwesenheitAmTag = (mitarbeiterId: number) => abwesenheiten.find((a) => a.mitarbeiterId === mitarbeiterId && a.datum === datum)
   const [beginn1, setBeginn1] = useState(formatZeit(dienst.beginn1Minuten))
   const [ende1, setEnde1] = useState(formatZeit(dienst.ende1Minuten))
   const [beginn2, setBeginn2] = useState(formatZeit(dienst.beginn2Minuten))
@@ -642,11 +707,17 @@ function DienstBearbeitenSheet({
         Person
         <select value={personId} onChange={(e) => setPersonId(e.target.value === '' ? '' : Number(e.target.value))}>
           <option value="">– keine –</option>
-          {mitarbeitende.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.kuerzel} – {m.name}
-            </option>
-          ))}
+          {mitarbeitende.map((m) => {
+            const ausgeschieden = !istAktiv(m)
+            const abw = abwesenheitAmTag(m.id!)
+            const istAktuellePerson = m.id === dienst.mitarbeiterId
+            return (
+              <option key={m.id} value={m.id} disabled={(ausgeschieden || !!abw) && !istAktuellePerson}>
+                {m.kuerzel} – {m.name}
+                {ausgeschieden ? ' (ausgeschieden)' : abw ? ` (${abwesenheitsartInfo(abw.art).bezeichnung})` : ''}
+              </option>
+            )
+          })}
         </select>
       </label>
       <label>

@@ -603,6 +603,20 @@ label textarea {
 }
 
 /* --- Wochenplan --- */
+.einstiegs-karte {
+  border-color: var(--birke);
+  background: linear-gradient(135deg, rgba(207, 167, 109, 0.14), var(--akzent-bg));
+}
+.dienstarten-knopfreihe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+.dienstarten-knopfreihe button {
+  font-size: 12.5px;
+  padding: 6px 10px;
+}
 .stundenkonto-liste {
   display: flex;
   flex-wrap: wrap;

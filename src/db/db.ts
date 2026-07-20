@@ -8,6 +8,7 @@ import type {
   IstZeit,
   Randdienst,
   KalenderEintrag,
+  Dienstart,
 } from '../types'
 
 export interface Snapshot {
@@ -37,6 +38,7 @@ class KitaPlanDB extends Dexie {
   kalender!: Table<KalenderEintrag, number>
   snapshots!: Table<Snapshot, number>
   einstellungen!: Table<Einstellungen, number>
+  dienstarten!: Table<Dienstart, number>
 
   constructor() {
     super('KitaPlanDB')
@@ -54,6 +56,9 @@ class KitaPlanDB extends Dexie {
     this.version(2).stores({
       einstellungen: '++id',
     })
+    this.version(3).stores({
+      dienstarten: '++id, reihenfolge',
+    })
   }
 }
 
@@ -69,6 +74,7 @@ export const DATENTABELLEN = [
   'randdienste',
   'kalender',
   'einstellungen',
+  'dienstarten',
 ] as const
 
 export type Datentabelle = (typeof DATENTABELLEN)[number]

@@ -118,6 +118,20 @@ export interface Randdienst {
   aktiv: boolean
 }
 
+/** Wiederkehrendes Schichtmuster (z.B. "Frühdienst 6:00–13:30") als
+ * Schnellauswahl beim Anlegen eines Dienstes – erspart das Eintippen der
+ * immer gleichen Zeiten. */
+export interface Dienstart {
+  id?: number
+  bezeichnung: string
+  beginn1Minuten: number
+  ende1Minuten: number
+  beginn2Minuten: number | null
+  ende2Minuten: number | null
+  pauseStunden: number
+  reihenfolge: number
+}
+
 export interface KalenderEintrag {
   id?: number
   datum: string
