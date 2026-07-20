@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import type { Dienst, Gruppe, KalenderEintrag, Mitarbeiter } from '../types'
+import type { Abwesenheit, Dienst, Feiertag, Gruppe, KalenderEintrag, Mitarbeiter } from '../types'
 import { KALENDER_FARBEN } from '../types'
 import { addTage, formatDatum, formatZeit, isoHeute, parseZeit, stundenText, wochentagKurz, wocheninfo } from '../lib/calendar'
 import { dienstNetto, dienstBrutto } from '../lib/dienst'
-import { kernzeitDefizit, pauseFehlt } from '../lib/pruefungen'
+import { kernzeitDefizit, pauseFehlt, findeUeberschneidungen } from '../lib/pruefungen'
+import { berechneWochenkonto } from '../lib/stundenkonto'
 import { baueUebernahme, baueVorlage } from '../lib/wochenvorlage'
 import { useDruck } from './DruckContext'
 import Modal from './Modal'
@@ -25,8 +26,9 @@ export default function WochenplanView() {
   const alleGruppen = useLiveQuery(() => db.gruppen.orderBy('slot').toArray(), [], [] as Gruppe[])
   const alleMitarbeiter = useLiveQuery(() => db.mitarbeiter.orderBy('name').toArray(), [], [] as Mitarbeiter[])
   const alleDienste = useLiveQuery(() => db.dienste.toArray(), [], [] as Dienst[])
-  const alleFeiertage = useLiveQuery(() => db.feiertage.toArray(), [], [])
+  const alleFeiertage = useLiveQuery(() => db.feiertage.toArray(), [], [] as Feiertag[])
   const alleKalender = useLiveQuery(() => db.kalender.toArray(), [], [] as KalenderEintrag[])
+  const alleAbwesenheiten = useLiveQuery(() => db.abwesenheiten.toArray(), [], [] as Abwesenheit[])
 
   const [gewaehlterSlot, setGewaehlterSlot] = useState<number | null>(null)
   const [referenzdatum, setReferenzdatum] = useState(isoHeute())
@@ -86,6 +88,25 @@ export default function WochenplanView() {
     }
     return map
   }, [kalenderHinweise])
+
+  // --- Dienste der ganzen Woche, gruppenübergreifend (für Stundenkonto & Überschneidungen) ---
+  const wochendienste = useMemo(
+    () => (alleDienste ?? []).filter((d) => !d.istVorlage && woche.alleTage.includes(d.datum)),
+    [alleDienste, woche],
+  )
+
+  // --- Stundenkonto: Soll/Ist je Person für die angezeigte Woche, unabhängig
+  // von der gewählten Gruppe, damit man beim Planen nicht selbst rechnen muss. ---
+  const wochenkonto = useMemo(
+    () => berechneWochenkonto(alleMitarbeiter ?? [], woche.werktage, alleFeiertage ?? [], wochendienste, alleAbwesenheiten ?? []),
+    [alleMitarbeiter, woche, alleFeiertage, wochendienste, alleAbwesenheiten],
+  )
+
+  // --- Gruppenübergreifende Doppelverplanung: derselbe Mensch zur selben
+  // Zeit in zwei Gruppen. Der Wochenplan zeigt sonst immer nur eine Gruppe,
+  // daher würde das sonst nicht auffallen. ---
+  const gruppeNachSlot = useMemo(() => new Map((alleGruppen ?? []).map((g) => [g.slot, g])), [alleGruppen])
+  const ueberschneidungen = useMemo(() => findeUeberschneidungen(wochendienste), [wochendienste])
 
   async function verschiebeDienst(dienstId: number, neuesDatum: string) {
     await db.dienste.update(dienstId, { datum: neuesDatum })
@@ -163,6 +184,40 @@ export default function WochenplanView() {
           </>
         )}
       </div>
+
+      {wochenkonto.length > 0 && (
+        <div className="karte stundenkonto-karte">
+          <h3>Stundenkonto diese Woche</h3>
+          <p className="hinweis-klein" style={{ marginBottom: 10 }}>
+            Ist / Soll je Person, über alle Gruppen hinweg – rot heißt: noch nicht auf Vertragsstunden geplant.
+          </p>
+          <div className="stundenkonto-liste">
+            {wochenkonto.map((z) => (
+              <span key={z.mitarbeiterId} className={`stundenkonto-eintrag ${z.diff < -0.01 ? 'unter' : 'passt'}`}>
+                <strong>{z.kuerzel}</strong> {stundenText(z.ist)} / {stundenText(z.soll)} Std
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {ueberschneidungen.length > 0 && (
+        <div className="hinweisliste">
+          {ueberschneidungen.map((u, i) => {
+            const person = mitarbeiterNachId.get(u.mitarbeiterId)
+            const gruppeA = u.a.gruppenSlot != null ? gruppeNachSlot.get(u.a.gruppenSlot)?.name : undefined
+            const gruppeB = u.b.gruppenSlot != null ? gruppeNachSlot.get(u.b.gruppenSlot)?.name : undefined
+            return (
+              <div key={i} className="hinweiszeile warnung">
+                ⚠ {person?.kuerzel ?? '?'} ist am {wochentagKurz(u.datum)} ({formatDatum(u.datum)}) doppelt eingeplant:{' '}
+                {formatZeit(u.a.beginn1Minuten)}–{formatZeit(u.a.ende1Minuten)}
+                {gruppeA ? ` in ${gruppeA}` : ''} und {formatZeit(u.b.beginn1Minuten)}–{formatZeit(u.b.ende1Minuten)}
+                {gruppeB ? ` in ${gruppeB}` : ''}.
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       <div className="vorlagen-leiste">
         <span>

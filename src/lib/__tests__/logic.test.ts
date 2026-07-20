@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { formatZeit, isoKalenderwoche, isoWochentag, parseZeit, wocheninfo } from '../calendar'
 import { arbZGPause, dienstBrutto, dienstNetto } from '../dienst'
-import { kernzeitDefizit, pauseFehlt } from '../pruefungen'
+import { kernzeitDefizit, pauseFehlt, findeUeberschneidungen, dienstUeberlappt } from '../pruefungen'
 import { berechneTage, summen } from '../abrechnung'
+import { berechneWochenkonto } from '../stundenkonto'
 import { baueUebernahme, baueVorlage } from '../wochenvorlage'
 import { berechneFeiertage } from '../feiertage'
 import type { Dienst, Mitarbeiter } from '../../types'
@@ -249,5 +250,88 @@ describe('wochenvorlage: Rundreise Vorlage -> Übernahme behält Wochentage', ()
     expect(neuerFreitag.datum).toBe(zielWoche.werktage[4])
     expect(neuerMontag.beginn1Minuten).toBe(8 * 60)
     expect(neuerFreitag.beginn1Minuten).toBe(9 * 60)
+  })
+})
+
+function dienst(overrides: Partial<Dienst>): Dienst {
+  return {
+    istVorlage: false,
+    datum: '2026-03-02',
+    beginn1Minuten: 8 * 60,
+    ende1Minuten: 14 * 60,
+    beginn2Minuten: null,
+    ende2Minuten: null,
+    pauseStunden: 0.5,
+    mitarbeiterId: 1,
+    gruppenSlot: 1,
+    ...overrides,
+  }
+}
+
+describe('Überschneidungen (gruppenübergreifende Doppelverplanung)', () => {
+  it('erkennt, wenn dieselbe Person zeitgleich in zwei Gruppen eingeplant ist', () => {
+    const a = dienst({ id: 1, gruppenSlot: 1, beginn1Minuten: 8 * 60, ende1Minuten: 14 * 60 })
+    const b = dienst({ id: 2, gruppenSlot: 2, beginn1Minuten: 9 * 60, ende1Minuten: 15 * 60 })
+    expect(dienstUeberlappt(a, b)).toBe(true)
+    const treffer = findeUeberschneidungen([a, b])
+    expect(treffer).toHaveLength(1)
+    expect(treffer[0].mitarbeiterId).toBe(1)
+  })
+
+  it('meldet keine Überschneidung bei direkt aneinander anschließenden Diensten', () => {
+    const a = dienst({ id: 1, gruppenSlot: 1, beginn1Minuten: 6 * 60, ende1Minuten: 12 * 60 })
+    const b = dienst({ id: 2, gruppenSlot: 2, beginn1Minuten: 12 * 60, ende1Minuten: 18 * 60 })
+    expect(dienstUeberlappt(a, b)).toBe(false)
+    expect(findeUeberschneidungen([a, b])).toHaveLength(0)
+  })
+
+  it('ignoriert unterschiedliche Personen und unterschiedliche Tage', () => {
+    const a = dienst({ id: 1, mitarbeiterId: 1, datum: '2026-03-02' })
+    const b = dienst({ id: 2, mitarbeiterId: 2, datum: '2026-03-02' })
+    const c = dienst({ id: 3, mitarbeiterId: 1, datum: '2026-03-03' })
+    expect(findeUeberschneidungen([a, b, c])).toHaveLength(0)
+  })
+})
+
+describe('Wochenkonto', () => {
+  const person: Mitarbeiter = {
+    id: 1,
+    kuerzel: 'AB',
+    name: 'Anna Beispiel',
+    funktion: 'Erzieher',
+    wochenstunden: 30, // 6 Std./Tag bei 5-Tage-Woche
+    beschaeftigtSeit: '2020-01-01',
+    stammgruppeSlot: 1,
+    hinweise: '',
+    austrittsdatum: null,
+    reihenfolge: 0,
+  }
+  const werktage = ['2026-03-02', '2026-03-03', '2026-03-04', '2026-03-05', '2026-03-06'] // Mo–Fr
+
+  it('summiert Ist aus Diensten über alle Gruppen und vergleicht mit dem Wochensoll', () => {
+    const dienste = [
+      dienst({ id: 1, datum: '2026-03-02', gruppenSlot: 1, beginn1Minuten: 8 * 60, ende1Minuten: 14 * 60, pauseStunden: 0.5 }),
+      dienst({ id: 2, datum: '2026-03-03', gruppenSlot: 2, beginn1Minuten: 8 * 60, ende1Minuten: 14 * 60, pauseStunden: 0.5 }),
+    ]
+    const zeilen = berechneWochenkonto([person], werktage, [], dienste, [])
+    expect(zeilen).toHaveLength(1)
+    expect(zeilen[0].soll).toBe(30) // 6 Std. x 5 Werktage
+    expect(zeilen[0].ist).toBe(11) // 2 x 5,5 Std. netto
+    expect(zeilen[0].diff).toBeLessThan(0)
+  })
+
+  it('schreibt Urlaub als Soll=Ist gut, reduziert das Wochensoll an Feiertagen', () => {
+    const abwesenheiten = [{ id: 1, datum: '2026-03-02', art: 'U' as const, bemerkung: '', mitarbeiterId: 1 }]
+    const feiertage = [{ id: 1, datum: '2026-03-03', name: 'Testfeiertag', bundesland: 'bundesweit' }]
+    const zeilen = berechneWochenkonto([person], werktage, feiertage, [], abwesenheiten)
+    // 5 Werktage - 1 Feiertag = 4 Tage Soll, davon 1 Tag Urlaub voll gutgeschrieben.
+    expect(zeilen[0].soll).toBe(24)
+    expect(zeilen[0].ist).toBe(6)
+  })
+
+  it('lässt inaktive (ausgeschiedene) Personen weg', () => {
+    const ausgeschieden: Mitarbeiter = { ...person, id: 2, austrittsdatum: '2020-06-01' }
+    const zeilen = berechneWochenkonto([person, ausgeschieden], werktage, [], [], [])
+    expect(zeilen.map((z) => z.mitarbeiterId)).toEqual([1])
   })
 })

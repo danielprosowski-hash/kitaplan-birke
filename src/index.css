@@ -603,6 +603,24 @@ label textarea {
 }
 
 /* --- Wochenplan --- */
+.stundenkonto-liste {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.stundenkonto-eintrag {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12.5px;
+  background: var(--gruen-bg);
+  color: var(--akzent-dunkel);
+}
+.stundenkonto-eintrag.unter {
+  background: var(--rot-bg);
+  color: var(--rot);
+  font-weight: 600;
+}
+
 .vorlagen-leiste {
   display: flex;
   align-items: center;
