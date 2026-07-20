@@ -133,6 +133,24 @@ h3 {
   padding: 14px 18px 5px;
   font-weight: 700;
 }
+.sidebar-gruppe-klapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 0;
+}
+.sidebar-gruppe-klapper:hover {
+  color: var(--akzent-dunkel);
+}
+.sidebar-start {
+  margin: 4px 8px 10px;
+  font-weight: 700;
+  color: var(--akzent-dunkel);
+}
 
 .sidebar-eintrag {
   display: flex;
@@ -180,6 +198,54 @@ h3 {
 .view-untertitel {
   color: var(--text-sekundaer);
   margin: 0 0 18px;
+}
+
+.start-schritte {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 720px;
+}
+.start-schritt {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.start-schritt-nummer {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--akzent);
+  color: #fff;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.start-schritt-inhalt {
+  flex: 1;
+}
+.start-schritt-inhalt h3 {
+  margin: 0 0 4px;
+}
+.start-schritt-checkliste {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.start-schritt-checkliste li.erledigt {
+  color: var(--text-sekundaer);
+}
+.start-schritt-aktionen {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
 }
 
 .erste-schritte {

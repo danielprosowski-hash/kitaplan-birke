@@ -17,6 +17,16 @@ Kalender für Wünsche und Termine ergänzt.
 Eine kurze Bedienanleitung fürs Team liegt bei: [`dokumentation/Bedienanleitung.pdf`](dokumentation/Bedienanleitung.pdf).
 Sie ist auch aus der laufenden App heraus verlinkt (Backup & Einstellungen).
 
+## Navigation
+
+Startseite ist immer der Bereich **Start**: eine nummerierte Schritt-für-
+Schritt-Anleitung für den üblichen Ablauf (einrichten → Wünsche/Abwesenheiten
+pflegen → Wochenplan schreiben → kontrollieren → abrechnen → sichern), mit
+Sprungknöpfen zum jeweiligen Bereich. Die Seitenleiste bleibt für den
+gezielten Zugriff bestehen, ist aber gruppiert und bis auf „Planung"
+(die wöchentlich gebrauchten Bereiche) standardmäßig eingeklappt, damit
+nicht alle zwölf Menüpunkte gleichzeitig die Übersicht erschweren.
+
 ## Funktionen
 
 - **Personal** – Mitarbeitende anlegen, bearbeiten, ausscheiden lassen

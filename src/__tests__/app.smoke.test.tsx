@@ -5,6 +5,9 @@ import { BEREICHE } from '../lib/bereiche'
 
 describe('App – Rauchtest', () => {
   it('lädt und zeigt alle Bereiche der Seitenleiste ohne Absturz an', async () => {
+    // Alle Sidebar-Gruppen aufgeklappt, damit der Test unabhängig vom
+    // Standard-Einklapp-Zustand jeden Menüpunkt findet.
+    localStorage.setItem('kitaplan.sidebarEingeklappt', JSON.stringify({}))
     render(<App />)
 
     // Ladezustand (Seed + Snapshot) muss durchlaufen.
