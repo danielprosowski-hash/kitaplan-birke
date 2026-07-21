@@ -29,16 +29,17 @@ export function kernzeitDefizit(dienste: Dienst[], mindest: number): number {
   return 0
 }
 
-/** Pausenpflicht nach ArbZG: ab 6 h muss mindestens 0,5 h Pause vorliegen (ab 9 h 0,75 h).
+/** Pausenpflicht nach § 4 ArbZG: erst bei MEHR als 6 h Pause vorgeschrieben
+ * (0,5 h; ab mehr als 9 h 0,75 h). Bei genau 6 h besteht noch keine Pflicht.
  * Bei Teildienst zählt die Lücke zwischen den Blöcken als Pause. */
 export function pauseFehlt(dienst: Dienst): boolean {
   const brutto = dienstBrutto(dienst)
-  if (brutto < 6) return false
+  if (brutto <= 6) return false
   let pauseEffektiv = dienst.pauseStunden
   if (dienst.beginn2Minuten != null && dienst.ende1Minuten <= dienst.beginn2Minuten) {
     pauseEffektiv += (dienst.beginn2Minuten - dienst.ende1Minuten) / 60
   }
-  const pflicht = brutto >= 9 ? 0.75 : 0.5
+  const pflicht = brutto > 9 ? 0.75 : 0.5
   return pauseEffektiv < pflicht
 }
 

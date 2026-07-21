@@ -41,21 +41,29 @@ nicht alle zwölf Menüpunkte gleichzeitig die Übersicht erschweren.
 - **Wochenplan** – pro Gruppe eine Woche im Raster, Dienste anlegen,
   bearbeiten und per Drag-and-Drop verschieben. Stundenkonto (Soll/Ist je
   Person, gruppenübergreifend) immer sichtbar. Live-Warnungen für
-  Kernzeit-Unterbesetzung (9–14 Uhr), fehlende Pause ab 6 Stunden und
-  gruppenübergreifende Doppelverplanung; abwesende/ausgeschiedene Personen
-  werden beim Zuweisen ausgegraut. Schnellauswahl-Knöpfe für wiederkehrende
-  Dienstarten. Standard-Woche als Vorlage speichern und auf andere Wochen
-  übernehmen.
+  Kernzeit-Unterbesetzung (9–14 Uhr), fehlende Pause ab mehr als 6 Stunden
+  und gruppenübergreifende Doppelverplanung; abwesende/ausgeschiedene
+  Personen werden beim Zuweisen ausgegraut. Abwesenheiten (Urlaub, Krank,
+  …) direkt pro Tag eintragbar, erscheinen als farbige Chips. Schnellauswahl-
+  Knöpfe für wiederkehrende Dienstarten. Standard-Woche/Rahmenplan als
+  Vorlage speichern und auf andere Wochen übernehmen – bei einer noch
+  komplett leeren Woche geschieht das automatisch.
+- **Rahmenplan** – fester Wochenrhythmus pro Person (Wochentag → Gruppe/
+  Zeiten), die Basis für jede neue Woche im Wochenplan.
 - **Dienstarten** – wiederkehrende Schichtmuster verwalten (Bezeichnung,
-  Zeiten, Pause), erscheinen im Wochenplan als Schnellauswahl.
-- **Wochenübersicht** – Read-Only-Ansicht aller aktiven Gruppen einer Woche
-- **Abdeckung** – prüft, ob alle Pflicht-Randdienste besetzt sind
+  Zeiten, Pause), erscheinen im Wochenplan und im Rahmenplan als
+  Schnellauswahl.
+- **Wochenübersicht** – Read-Only-Ansicht aller aktiven Gruppen einer Woche,
+  mit PDF-Export
+- **Abdeckung** – prüft, ob zu jedem Früh-/Spätdienst-Zeitpunkt jemand
+  tatsächlich anwesend ist (nicht nur, ob ein Dienst in der Nähe beginnt)
 - **Ist-Zeiten** – pro Person und Monat, automatischer ArbZG-Pausenabzug,
   taggenauer Soll-Ist-Vergleich
 - **Abrechnung** – taggenaues Stundenkonto pro Person mit Soll, Ist,
   Saldo; PDF-Export für Einzelperson und Gesamtauswertung
-- **PDF-Export** – Wochenaushang, Gesamtplan, Monatsabrechnung und
-  Auswertung als Druckansicht („Drucken → Als PDF speichern")
+- **PDF-Export** – Wochenaushang, Gesamtplan, Wochenübersicht,
+  Monatsabrechnung und Auswertung als Druckansicht, mit echten Namen und
+  gut lesbarer Schriftgröße („Drucken → Als PDF speichern")
 
 ## Datenhaltung und Backup
 

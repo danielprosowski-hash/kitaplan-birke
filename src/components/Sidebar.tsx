@@ -38,7 +38,7 @@ export default function Sidebar({ aktiv, onWechsel, sicherungFaellig }: Props) {
     <nav className="sidebar no-print">
       <div className="sidebar-titel">
         <span className="sidebar-logo">
-          <img src="./logo.png" alt="" width={28} height={28} />
+          <img src="./logo.png" alt="" width={44} height={44} />
         </span>
         <span>Kitaplan Birke</span>
       </div>

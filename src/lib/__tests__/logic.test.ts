@@ -6,7 +6,8 @@ import { berechneTage, summen } from '../abrechnung'
 import { berechneWochenkonto } from '../stundenkonto'
 import { baueUebernahme, baueVorlage } from '../wochenvorlage'
 import { berechneFeiertage } from '../feiertage'
-import type { Dienst, Mitarbeiter } from '../../types'
+import { pruefeAbdeckung } from '../abdeckung'
+import type { Dienst, Mitarbeiter, Randdienst } from '../../types'
 
 describe('feiertage', () => {
   it('berechnet die beweglichen Feiertage 2026 korrekt (Ostersonntag: 5. April 2026)', () => {
@@ -82,11 +83,16 @@ describe('dienst', () => {
     expect(dienstNetto(basis)).toBe(7.5)
   })
 
-  it('ArbZG-Pause: <6h keine, ab 6h 0.5h, ab 9h 0.75h', () => {
+  it('ArbZG-Pause: bis 6h keine, mehr als 6h 0.5h, mehr als 9h 0.75h', () => {
+    // § 4 ArbZG: "mehr als sechs" / "mehr als neun" Stunden – beide Grenzen
+    // sind exklusiv. Bei genau 6h (z.B. Teilzeit-Regeldienst) darf also
+    // KEINE Pause verlangt werden.
     expect(arbZGPause(5.9)).toBe(0)
-    expect(arbZGPause(6)).toBe(0.5)
+    expect(arbZGPause(6)).toBe(0)
+    expect(arbZGPause(6.1)).toBe(0.5)
     expect(arbZGPause(8.9)).toBe(0.5)
-    expect(arbZGPause(9)).toBe(0.75)
+    expect(arbZGPause(9)).toBe(0.5)
+    expect(arbZGPause(9.1)).toBe(0.75)
   })
 })
 
@@ -126,6 +132,21 @@ describe('pruefungen', () => {
     }
     expect(pauseFehlt(ohnePause)).toBe(true)
     expect(pauseFehlt({ ...ohnePause, pauseStunden: 0.5 })).toBe(false)
+  })
+
+  it('verlangt bei genau 6 Stunden Schicht KEINE Pause (Bugfix)', () => {
+    const sechsStunden: Dienst = {
+      istVorlage: false,
+      datum: '2026-01-05',
+      beginn1Minuten: 8 * 60,
+      ende1Minuten: 14 * 60, // genau 6h
+      beginn2Minuten: null,
+      ende2Minuten: null,
+      pauseStunden: 0,
+      mitarbeiterId: 1,
+      gruppenSlot: 1,
+    }
+    expect(pauseFehlt(sechsStunden)).toBe(false)
   })
 })
 
@@ -334,4 +355,49 @@ describe('Wochenkonto', () => {
     const zeilen = berechneWochenkonto([person, ausgeschieden], werktage, [], [], [])
     expect(zeilen.map((z) => z.mitarbeiterId)).toEqual([1])
   })
+})
+
+describe('Abdeckung (Randdienste) – Bugfix Spätdienst', () => {
+  const mitarbeiterNachId = new Map<number, Mitarbeiter>([
+    [1, { id: 1, kuerzel: 'AB', name: 'Anna Beispiel', funktion: 'Erzieher', wochenstunden: 39, beschaeftigtSeit: '2020-01-01', stammgruppeSlot: 1, hinweise: '', austrittsdatum: null, reihenfolge: 0 }],
+  ])
+  const spaetdienst17: Randdienst = { id: 1, beginnMinuten: 17 * 60, bezeichnung: 'Spätdienst 17:00', reihenfolge: 0, aktiv: true }
+  const spaetdienst1530: Randdienst = { id: 2, beginnMinuten: 15 * 60 + 30, bezeichnung: 'Spätdienst 15:30', reihenfolge: 1, aktiv: true }
+
+  it('erkennt einen langen Dienst als Abdeckung für einen späten Randdienst, auch wenn der Dienst viel früher beginnt', () => {
+    // Genau der gemeldete Fall: jemand arbeitet z.B. 9:30–17:00 – der Dienst
+    // BEGINNT nicht in der Nähe von 17:00, deckt die Uhrzeit aber trotzdem ab.
+    const dienst = dienst_({ beginn1Minuten: 9 * 60 + 30, ende1Minuten: 17 * 60 })
+    const ergebnis = pruefeAbdeckung([spaetdienst17], [dienst], ['2026-03-02'], mitarbeiterNachId)
+    const zelle = ergebnis.get('2026-03-02')![0]
+    expect(zelle.besetztVon).toEqual(['AB'])
+  })
+
+  it('deckt mehrere gestaffelte Spätdienst-Zeitpunkte durch einen einzigen langen Dienst ab', () => {
+    const dienst = dienst_({ beginn1Minuten: 12 * 60, ende1Minuten: 17 * 60 })
+    const ergebnis = pruefeAbdeckung([spaetdienst1530, spaetdienst17], [dienst], ['2026-03-02'], mitarbeiterNachId)
+    const zellen = ergebnis.get('2026-03-02')!
+    expect(zellen.every((z) => z.besetztVon.length === 1)).toBe(true)
+  })
+
+  it('meldet einen Randdienst weiterhin als unbesetzt, wenn niemand zu diesem Zeitpunkt da ist', () => {
+    const dienst = dienst_({ beginn1Minuten: 8 * 60, ende1Minuten: 13 * 60 }) // endet lange vor 15:30
+    const ergebnis = pruefeAbdeckung([spaetdienst1530], [dienst], ['2026-03-02'], mitarbeiterNachId)
+    expect(ergebnis.get('2026-03-02')![0].besetztVon).toEqual([])
+  })
+
+  function dienst_(overrides: Partial<Dienst>): Dienst {
+    return {
+      istVorlage: false,
+      datum: '2026-03-02',
+      beginn1Minuten: 8 * 60,
+      ende1Minuten: 14 * 60,
+      beginn2Minuten: null,
+      ende2Minuten: null,
+      pauseStunden: 0.5,
+      mitarbeiterId: 1,
+      gruppenSlot: 1,
+      ...overrides,
+    }
+  }
 })

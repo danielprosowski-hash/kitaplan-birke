@@ -3,6 +3,7 @@ export type Bereich =
   | 'personal'
   | 'gruppen'
   | 'dienstarten'
+  | 'rahmenplan'
   | 'feiertage'
   | 'abwesenheiten'
   | 'kalender'
@@ -26,6 +27,7 @@ export const BEREICHE: BereichInfo[] = [
   { id: 'personal', label: 'Personal', gruppe: 'Stammdaten', hinweis: 'Mitarbeitende anlegen und verwalten' },
   { id: 'gruppen', label: 'Gruppen', gruppe: 'Stammdaten', hinweis: 'Kita-Gruppen aktivieren und Mindestbesetzung festlegen' },
   { id: 'dienstarten', label: 'Dienstarten', gruppe: 'Stammdaten', hinweis: 'Wiederkehrende Schichtmuster für die Schnellauswahl im Wochenplan' },
+  { id: 'rahmenplan', label: 'Rahmenplan', gruppe: 'Stammdaten', hinweis: 'Fester Wochenplan pro Person – Basis für jede neue Woche' },
   { id: 'feiertage', label: 'Feiertage', gruppe: 'Stammdaten', hinweis: 'Feiertage prüfen und bei Bedarf ergänzen' },
   { id: 'abwesenheiten', label: 'Abwesenheiten', gruppe: 'Stammdaten', hinweis: 'Urlaub, Krankheit und andere Abwesenheiten erfassen' },
   { id: 'kalender', label: 'Kalender', gruppe: 'Planung', hinweis: 'Wünsche und Termine vorab eintragen, als Erinnerung im Wochenplan' },

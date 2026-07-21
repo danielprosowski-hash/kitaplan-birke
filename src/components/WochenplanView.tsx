@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import type { Abwesenheit, Dienst, Dienstart, Feiertag, Gruppe, KalenderEintrag, Mitarbeiter } from '../types'
-import { KALENDER_FARBEN, abwesenheitsartInfo } from '../types'
+import type { Abwesenheit, Abwesenheitsart, Dienst, Dienstart, Feiertag, Gruppe, KalenderEintrag, Mitarbeiter } from '../types'
+import { ABWESENHEITSARTEN, ABWESENHEITS_FARBEN, KALENDER_FARBEN, abwesenheitsartInfo } from '../types'
 import { addTage, formatDatum, formatZeit, isoHeute, parseZeit, stundenText, wochentagKurz, wocheninfo } from '../lib/calendar'
-import { dienstNetto, dienstBrutto, istAktiv } from '../lib/dienst'
+import { dienstNetto, dienstBrutto, istAktiv, vorname } from '../lib/dienst'
 import { kernzeitDefizit, pauseFehlt, findeUeberschneidungen } from '../lib/pruefungen'
 import { berechneWochenkonto } from '../lib/stundenkonto'
 import { baueUebernahme, baueVorlage } from '../lib/wochenvorlage'
@@ -35,9 +35,11 @@ export default function WochenplanView() {
   const [referenzdatum, setReferenzdatum] = useState(isoHeute())
   const [bearbeitenDienst, setBearbeitenDienst] = useState<Dienst | null>(null)
   const [neuFuerTag, setNeuFuerTag] = useState<string | null>(null)
+  const [neueAbwesenheitFuerTag, setNeueAbwesenheitFuerTag] = useState<string | null>(null)
   const [zeigeSpeichernAlsVorlage, setZeigeSpeichernAlsVorlage] = useState(false)
   const [zeigeUebernehmenDialog, setZeigeUebernehmenDialog] = useState(false)
   const [meldung, setMeldung] = useState<string | null>(null)
+  const [autoUebernommenFuer, setAutoUebernommenFuer] = useState<string | null>(null)
 
   const aktiveGruppen = (alleGruppen ?? []).filter((g) => g.aktiv)
   const gruppe = aktiveGruppen.find((g) => g.slot === gewaehlterSlot) ?? null
@@ -92,6 +94,24 @@ export default function WochenplanView() {
     return map
   }, [kalenderHinweise])
 
+  // --- Abwesenheiten (Urlaub/Krank/…) der Stammbesetzung dieser Gruppe,
+  // direkt im Wochenplan sichtbar und eintragbar. ---
+  const abwesenheitenDerWoche = useMemo(() => {
+    if (!gruppe) return []
+    return (alleAbwesenheiten ?? [])
+      .filter((a) => woche.alleTage.includes(a.datum))
+      .map((a) => ({ ...a, person: mitarbeiterNachId.get(a.mitarbeiterId) }))
+      .filter((a) => a.person?.stammgruppeSlot === gruppe.slot)
+  }, [alleAbwesenheiten, woche, mitarbeiterNachId, gruppe])
+  const abwesenheitenProTag = useMemo(() => {
+    const map = new Map<string, typeof abwesenheitenDerWoche>()
+    for (const a of abwesenheitenDerWoche) {
+      if (!map.has(a.datum)) map.set(a.datum, [])
+      map.get(a.datum)!.push(a)
+    }
+    return map
+  }, [abwesenheitenDerWoche])
+
   // --- Dienste der ganzen Woche, gruppenübergreifend (für Stundenkonto & Überschneidungen) ---
   const wochendienste = useMemo(
     () => (alleDienste ?? []).filter((d) => !d.istVorlage && woche.alleTage.includes(d.datum)),
@@ -130,6 +150,28 @@ export default function WochenplanView() {
     zeige(`${neueVorlage.length} Dienste als Vorlage gespeichert.`)
     setZeigeSpeichernAlsVorlage(false)
   }
+
+  // --- Rahmenplan automatisch übernehmen: sobald eine komplett leere Woche
+  // (noch KEIN echter Dienst irgendwo, egal welche Gruppe) geöffnet wird und
+  // ein Rahmenplan existiert, wird er transparent eingesetzt – ohne
+  // bestehende Einträge anzufassen (die Bedingung greift nur, wenn wirklich
+  // noch nichts da ist) und pro Woche nur einmal. ---
+  useEffect(() => {
+    if (alleDienste == null) return
+    if (vorlagenAnzahl === 0) return
+    if (diensteInZielwoche > 0) return
+    if (autoUebernommenFuer === woche.montag) return
+    setAutoUebernommenFuer(woche.montag)
+    ;(async () => {
+      const vorlage = alleDienste.filter((d) => d.istVorlage)
+      const { neueDienste } = baueUebernahme(woche, vorlage, false, alleDienste)
+      if (neueDienste.length > 0) {
+        await db.dienste.bulkAdd(neueDienste)
+        zeige(`Rahmenplan automatisch für ${woche.bezeichnung} übernommen (${neueDienste.length} Dienste).`)
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [woche.montag, vorlagenAnzahl, diensteInZielwoche, alleDienste, autoUebernommenFuer])
 
   async function uebernehmen(vorhandeneErsetzen: boolean) {
     const vorlage = (alleDienste ?? []).filter((d) => d.istVorlage)
@@ -198,7 +240,7 @@ export default function WochenplanView() {
           <div className="stundenkonto-liste">
             {wochenkonto.map((z) => (
               <span key={z.mitarbeiterId} className={`stundenkonto-eintrag ${z.diff < -0.01 ? 'unter' : 'passt'}`}>
-                <strong>{z.kuerzel}</strong> {stundenText(z.ist)} / {stundenText(z.soll)} Std
+                <strong>{vorname(z.name)}</strong> {stundenText(z.ist)} / {stundenText(z.soll)} Std
               </span>
             ))}
           </div>
@@ -213,7 +255,7 @@ export default function WochenplanView() {
             const gruppeB = u.b.gruppenSlot != null ? gruppeNachSlot.get(u.b.gruppenSlot)?.name : undefined
             return (
               <div key={i} className="hinweiszeile warnung">
-                ⚠ {person?.kuerzel ?? '?'} ist am {wochentagKurz(u.datum)} ({formatDatum(u.datum)}) doppelt eingeplant:{' '}
+                ⚠ {vorname(person?.name)} ist am {wochentagKurz(u.datum)} ({formatDatum(u.datum)}) doppelt eingeplant:{' '}
                 {formatZeit(u.a.beginn1Minuten)}–{formatZeit(u.a.ende1Minuten)}
                 {gruppeA ? ` in ${gruppeA}` : ''} und {formatZeit(u.b.beginn1Minuten)}–{formatZeit(u.b.ende1Minuten)}
                 {gruppeB ? ` in ${gruppeB}` : ''}.
@@ -296,8 +338,10 @@ export default function WochenplanView() {
                   .sort((a, b) => a.beginn1Minuten - b.beginn1Minuten)}
                 feiertagName={feiertagNachDatum.get(tag)?.name}
                 kalenderEintraege={kalenderProTag.get(tag) ?? []}
+                abwesenheiten={abwesenheitenProTag.get(tag) ?? []}
                 mitarbeiterNachId={mitarbeiterNachId}
                 onNeu={() => setNeuFuerTag(tag)}
+                onNeueAbwesenheit={() => setNeueAbwesenheitFuerTag(tag)}
                 onBearbeiten={setBearbeitenDienst}
                 onDrop={verschiebeDienst}
               />
@@ -322,6 +366,16 @@ export default function WochenplanView() {
           abwesenheiten={alleAbwesenheiten ?? []}
           dienstarten={alleDienstarten ?? []}
           onSchliessen={() => setNeuFuerTag(null)}
+        />
+      )}
+      {neueAbwesenheitFuerTag && (
+        <AbwesenheitNeuSheet
+          datum={neueAbwesenheitFuerTag}
+          mitarbeitende={aktiveMitarbeiter}
+          abwesenheiten={alleAbwesenheiten ?? []}
+          dienste={alleDienste ?? []}
+          gruppeNachSlot={gruppeNachSlot}
+          onSchliessen={() => setNeueAbwesenheitFuerTag(null)}
         />
       )}
       {zeigeSpeichernAlsVorlage && (
@@ -371,8 +425,10 @@ function TagSpalte({
   dienste,
   feiertagName,
   kalenderEintraege,
+  abwesenheiten,
   mitarbeiterNachId,
   onNeu,
+  onNeueAbwesenheit,
   onBearbeiten,
   onDrop,
 }: {
@@ -380,8 +436,10 @@ function TagSpalte({
   dienste: Dienst[]
   feiertagName?: string
   kalenderEintraege: (KalenderEintrag & { person?: Mitarbeiter })[]
+  abwesenheiten: (Abwesenheit & { person?: Mitarbeiter })[]
   mitarbeiterNachId: Map<number, Mitarbeiter>
   onNeu: () => void
+  onNeueAbwesenheit: () => void
   onBearbeiten: (d: Dienst) => void
   onDrop: (dienstId: number, neuesDatum: string) => void
 }) {
@@ -419,9 +477,26 @@ function TagSpalte({
               style={{ background: KALENDER_FARBEN[k.kategorie] }}
               title={`${k.kategorie}${k.bemerkung ? ': ' + k.bemerkung : ''}`}
             >
-              {k.person?.kuerzel ?? '?'}
+              {vorname(k.person?.name)}
             </span>
           ))}
+        </div>
+      )}
+      {abwesenheiten.length > 0 && (
+        <div className="tagspalte-kalender">
+          {abwesenheiten.map((a) => {
+            const info = abwesenheitsartInfo(a.art)
+            return (
+              <span
+                key={a.id}
+                className="kalender-chip klein"
+                style={{ background: ABWESENHEITS_FARBEN[a.art] }}
+                title={`${info.bezeichnung}${a.bemerkung ? ': ' + a.bemerkung : ''}`}
+              >
+                {vorname(a.person?.name)} · {info.code}
+              </span>
+            )
+          })}
         </div>
       )}
       {dienste.map((d) => (
@@ -433,7 +508,7 @@ function TagSpalte({
           onClick={() => onBearbeiten(d)}
         >
           <div className="dienstkarte-kopf">
-            <strong>{d.mitarbeiterId != null ? mitarbeiterNachId.get(d.mitarbeiterId)?.kuerzel ?? '?' : '?'}</strong>
+            <strong>{d.mitarbeiterId != null ? vorname(mitarbeiterNachId.get(d.mitarbeiterId)?.name) : '?'}</strong>
             <span className="hinweis-klein">{stundenText(dienstNetto(d))}</span>
           </div>
           <div className="hinweis-klein">
@@ -445,9 +520,14 @@ function TagSpalte({
         </div>
       ))}
       {!istWE && !feiertagName && (
-        <button className="tagspalte-plus" onClick={onNeu}>
-          + Dienst
-        </button>
+        <div className="tagspalte-aktionen">
+          <button className="tagspalte-plus" onClick={onNeu}>
+            + Dienst
+          </button>
+          <button className="tagspalte-plus" onClick={onNeueAbwesenheit}>
+            + Abwesenheit
+          </button>
+        </div>
       )}
     </div>
   )
@@ -778,6 +858,92 @@ function DienstBearbeitenSheet({
         <span className="spacer" />
         <button onClick={onSchliessen}>Abbrechen</button>
         <button className="primaer" disabled={!zeitenGueltig} onClick={speichern}>
+          Speichern
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
+function AbwesenheitNeuSheet({
+  datum,
+  mitarbeitende,
+  abwesenheiten,
+  dienste,
+  gruppeNachSlot,
+  onSchliessen,
+}: {
+  datum: string
+  mitarbeitende: Mitarbeiter[]
+  abwesenheiten: Abwesenheit[]
+  dienste: Dienst[]
+  gruppeNachSlot: Map<number, Gruppe>
+  onSchliessen: () => void
+}) {
+  const [personId, setPersonId] = useState<number | ''>('')
+  const [art, setArt] = useState<Abwesenheitsart>('U')
+  const [bemerkung, setBemerkung] = useState('')
+
+  const bereitsAbwesend = (mitarbeiterId: number) => abwesenheiten.find((a) => a.mitarbeiterId === mitarbeiterId && a.datum === datum)
+  const kollidierendeDienste =
+    personId !== '' ? dienste.filter((d) => !d.istVorlage && d.mitarbeiterId === personId && d.datum === datum) : []
+  const gueltig = personId !== '' && !bereitsAbwesend(personId as number)
+
+  async function speichern() {
+    if (!gueltig) return
+    await db.abwesenheiten.add({ datum, art, bemerkung, mitarbeiterId: personId as number })
+    onSchliessen()
+  }
+
+  return (
+    <Modal titel={`Abwesenheit eintragen – ${formatDatum(datum)}`} onSchliessen={onSchliessen}>
+      <label>
+        Person
+        <select value={personId} onChange={(e) => setPersonId(e.target.value === '' ? '' : Number(e.target.value))} autoFocus>
+          <option value="">– wählen –</option>
+          {mitarbeitende.map((m) => {
+            const abw = bereitsAbwesend(m.id!)
+            return (
+              <option key={m.id} value={m.id} disabled={!!abw}>
+                {m.kuerzel} – {m.name}
+                {abw ? ` (bereits: ${abwesenheitsartInfo(abw.art).bezeichnung})` : ''}
+              </option>
+            )
+          })}
+        </select>
+      </label>
+      <label>
+        Art
+        <select value={art} onChange={(e) => setArt(e.target.value as Abwesenheitsart)}>
+          {ABWESENHEITSARTEN.map((a) => (
+            <option key={a.code} value={a.code}>
+              {a.code} – {a.bezeichnung}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Bemerkung
+        <input type="text" placeholder="optional" value={bemerkung} onChange={(e) => setBemerkung(e.target.value)} />
+      </label>
+      {kollidierendeDienste.length > 0 && (
+        <p className="fehler-text hinweis-klein">
+          Achtung: Für diese Person ist an diesem Tag noch{' '}
+          {kollidierendeDienste.length === 1 ? 'ein Dienst' : `${kollidierendeDienste.length} Dienste`} eingetragen (
+          {kollidierendeDienste
+            .map((d) => `${d.gruppenSlot != null ? gruppeNachSlot.get(d.gruppenSlot)?.name ?? '?' : '?'} ${formatZeit(d.beginn1Minuten)}–${formatZeit(d.ende1Minuten)}`)
+            .join(', ')}
+          ) – die Abwesenheit wird trotzdem gespeichert, den Dienst bitte anschließend im Wochenplan selbst prüfen und
+          bei Bedarf löschen.
+        </p>
+      )}
+      <p className="hinweis-klein">
+        Nur für diesen einen Tag. Für einen ganzen Zeitraum (z.B. eine Urlaubswoche) eignet sich der Bereich
+        „Abwesenheiten" besser.
+      </p>
+      <div className="modal-aktionen">
+        <button onClick={onSchliessen}>Abbrechen</button>
+        <button className="primaer" disabled={!gueltig} onClick={speichern}>
           Speichern
         </button>
       </div>

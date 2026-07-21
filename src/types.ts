@@ -33,6 +33,21 @@ export function abwesenheitsartInfo(code: Abwesenheitsart): AbwesenheitsartInfo 
   return ABWESENHEITSARTEN.find((a) => a.code === code) ?? ABWESENHEITSARTEN[5]
 }
 
+/** Farben für die Abwesenheits-Chips im Wochenplan – angelehnt an die
+ * Kalender-Farben, damit Urlaub/Fortbildung/Sonstiges optisch konsistent
+ * über die ganze App hinweg wiederzuerkennen sind. */
+export const ABWESENHEITS_FARBEN: Record<Abwesenheitsart, string> = {
+  U: '#2f9e44',
+  RT: '#2f9e44',
+  UWT: '#2f9e44',
+  K: '#c1502e',
+  FB: '#7048e8',
+  F: '#868e96',
+  Ue: '#868e96',
+  MZ: '#868e96',
+  EZ: '#868e96',
+}
+
 // Kalender-Feature: Wünsche/Termine, die vorab eingetragen und beim
 // Schreiben des Wochenplans als Erinnerung angezeigt werden.
 export type KalenderKategorie = 'Urlaubswunsch' | 'Frei-Wunsch' | 'Termin' | 'Fortbildung' | 'Sonstiges'

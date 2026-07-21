@@ -19,7 +19,10 @@ export default function StartView({ onWechsel, gruppeAktiv, personalVorhanden, d
 
   return (
     <div className="view">
-      <h1>Willkommen bei Kitaplan Birke</h1>
+      <div className="start-kopf">
+        <img src="./logo.png" alt="" width={72} height={72} />
+        <h1>Willkommen bei Kitaplan Birke</h1>
+      </div>
       <p className="view-untertitel">
         So läuft die Planung normalerweise ab. Jeder Schritt führt direkt zum passenden Bereich – die Seitenleiste
         bleibt für den gezielten Zugriff daneben bestehen.
@@ -54,6 +57,13 @@ export default function StartView({ onWechsel, gruppeAktiv, personalVorhanden, d
                 </button>
               </li>
             </ul>
+            <p className="hinweis-klein" style={{ marginTop: 10 }}>
+              Optional, aber empfohlen: Für jede Person einen{' '}
+              <button className="linkbutton" onClick={() => onWechsel('rahmenplan')}>
+                Rahmenplan
+              </button>{' '}
+              hinterlegen (fester Wochenrhythmus) – neue Wochen füllen sich damit von selbst.
+            </p>
           </div>
         </div>
 

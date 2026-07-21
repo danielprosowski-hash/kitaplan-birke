@@ -5,6 +5,7 @@ import { dienstNetto, istAktiv, tagesSoll } from './dienst'
 export interface WochenkontoZeile {
   mitarbeiterId: number
   kuerzel: string
+  name: string
   soll: number
   ist: number
   diff: number
@@ -42,7 +43,7 @@ export function berechneWochenkonto(
           ist += tagesDienste.reduce((sum, d) => sum + dienstNetto(d), 0)
         }
       }
-      return { mitarbeiterId: m.id!, kuerzel: m.kuerzel, soll, ist, diff: ist - soll }
+      return { mitarbeiterId: m.id!, kuerzel: m.kuerzel, name: m.name, soll, ist, diff: ist - soll }
     })
     .sort((a, b) => a.diff - b.diff)
 }

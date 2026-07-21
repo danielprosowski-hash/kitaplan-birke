@@ -53,6 +53,7 @@ export default function AuswertungDruck({
           ))}
         </tbody>
       </table>
+      <p className="druck-fusszeile">Erstellt am {new Date().toLocaleDateString('de-DE')} mit Kitaplan Birke.</p>
     </div>
   )
 }

@@ -10,6 +10,14 @@ export function istAktiv(m: Mitarbeiter, heute: string = new Date().toISOString(
   return m.austrittsdatum > heute
 }
 
+/** Vorname aus dem vollen Namen (erstes Wort) – im Wochenplan werden
+ * Personen ausgeschrieben statt mit Kürzel angezeigt, damit auf einen Blick
+ * klar ist, um wen es geht, ohne die Kürzel-Liste im Kopf zu haben. */
+export function vorname(name: string | undefined | null): string {
+  if (!name) return '?'
+  return name.trim().split(/\s+/)[0] || '?'
+}
+
 /** Brutto-Dauer eines Dienstes in Stunden (Block 1 + ggf. Block 2), ohne Pausenabzug. */
 export function dienstBrutto(d: Dienst): number {
   const block1 = Math.max(0, d.ende1Minuten - d.beginn1Minuten)
@@ -29,10 +37,13 @@ export function istZeitBrutto(iz: IstZeit): number {
   return Math.max(0, iz.bisMinuten - iz.vonMinuten) / 60
 }
 
-/** Pflichtpause nach ArbZG: unter 6 h keine Pause, ab 6 h 0,5 h, ab 9 h 0,75 h. */
+/** Pflichtpause nach § 4 ArbZG: "mehr als sechs bis zu neun Stunden" -> 0,5 h,
+ * "mehr als neun Stunden" -> 0,75 h. Beide Schwellen sind ausdrücklich
+ * "mehr als", nicht "ab" – bei genau 6 Stunden Bruttoarbeitszeit ist also
+ * noch KEINE Pause vorgeschrieben (das war zuvor falsch mit >= 6 implementiert). */
 export function arbZGPause(bruttoStunden: number): number {
-  if (bruttoStunden >= 9) return 0.75
-  if (bruttoStunden >= 6) return 0.5
+  if (bruttoStunden > 9) return 0.75
+  if (bruttoStunden > 6) return 0.5
   return 0
 }
 

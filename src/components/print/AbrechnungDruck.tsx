@@ -69,6 +69,7 @@ export default function AbrechnungDruck({
           </tr>
         </tfoot>
       </table>
+      <p className="druck-fusszeile">Erstellt am {new Date().toLocaleDateString('de-DE')} mit Kitaplan Birke.</p>
     </div>
   )
 }

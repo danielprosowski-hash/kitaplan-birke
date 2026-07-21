@@ -84,7 +84,7 @@ h3 {
 }
 
 .sidebar {
-  width: 226px;
+  width: 248px;
   flex: none;
   background: linear-gradient(180deg, #f3ede0 0%, #ede4d0 100%);
   border-right: 1px solid var(--rand);
@@ -111,8 +111,8 @@ h3 {
   color: var(--akzent-dunkel);
 }
 .sidebar-logo {
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -200,6 +200,18 @@ h3 {
   margin: 0 0 18px;
 }
 
+.start-kopf {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+.start-kopf img {
+  border-radius: 14px;
+}
+.start-kopf h1 {
+  margin: 0;
+}
 .start-schritte {
   display: flex;
   flex-direction: column;
@@ -777,8 +789,14 @@ label textarea {
   flex-wrap: wrap;
   gap: 4px;
 }
-.tagspalte-plus {
+.tagspalte-aktionen {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+.tagspalte-plus {
   font-size: 12px;
   padding: 5px 9px;
   align-self: flex-start;
@@ -1056,47 +1074,60 @@ label textarea {
   gap: 8px;
 }
 .print-area {
-  padding: 24px 32px;
+  padding: 28px 36px;
 }
 .druck-seite h1 {
-  font-size: 18px;
+  font-size: 26px;
+  margin-bottom: 4px;
+}
+.druck-seite .hinweis-klein {
+  font-size: 13px;
+}
+.druck-fusszeile {
+  margin-top: 18px;
+  font-size: 11px;
+  color: #666;
 }
 .druck-tabelle {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 12px;
+  margin-top: 16px;
 }
 .druck-tabelle th,
 .druck-tabelle td {
   border: 1px solid #999;
-  padding: 4px 8px;
-  font-size: 12px;
+  padding: 8px 10px;
+  font-size: 14.5px;
   text-align: left;
 }
 .druck-tabelle th {
   background: #eee;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 .druck-wochenraster {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-  margin-top: 12px;
+  gap: 10px;
+  margin-top: 16px;
 }
 .druck-tagspalte {
-  border: 1px solid #999;
-  padding: 6px;
-  min-height: 140px;
+  border: 1.5px solid #999;
+  padding: 10px;
+  min-height: 170px;
 }
 .druck-tagspalte-kopf {
   font-weight: 700;
-  font-size: 12px;
-  margin-bottom: 6px;
+  font-size: 15px;
+  margin-bottom: 8px;
   border-bottom: 1px solid #ccc;
-  padding-bottom: 4px;
+  padding-bottom: 6px;
 }
 .druck-diensteintrag {
-  font-size: 11px;
-  margin-bottom: 6px;
+  font-size: 13px;
+  margin-bottom: 10px;
+  line-height: 1.4;
 }
 tr.druck-krippe td {
   background: #fdf6d8;

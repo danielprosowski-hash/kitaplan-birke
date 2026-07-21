@@ -3,8 +3,11 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import type { Dienst, Gruppe, Mitarbeiter } from '../types'
 import { addTage, formatDatum, formatZeit, isoHeute, wochentagKurz, wocheninfo } from '../lib/calendar'
+import { useDruck } from './DruckContext'
+import GesamtplanDruck from './print/GesamtplanDruck'
 
 export default function WochenuebersichtView() {
+  const { oeffneDruck } = useDruck()
   const alleGruppen = useLiveQuery(() => db.gruppen.orderBy('slot').toArray(), [], [] as Gruppe[])
   const alleDienste = useLiveQuery(() => db.dienste.toArray(), [], [] as Dienst[])
   const alleFeiertage = useLiveQuery(() => db.feiertage.toArray(), [], [])
@@ -19,6 +22,14 @@ export default function WochenuebersichtView() {
   const feiertagNachDatum = new Map((alleFeiertage ?? []).map((f) => [f.datum, f]))
   const mitarbeiterNachId = new Map((alleMitarbeiter ?? []).map((m) => [m.id!, m]))
 
+  function drucken() {
+    const dienste = (alleDienste ?? []).filter((d) => !d.istVorlage && woche.alleTage.includes(d.datum))
+    oeffneDruck(
+      <GesamtplanDruck woche={woche} gruppen={aktiveGruppen} dienste={dienste} mitarbeiterNachId={mitarbeiterNachId} />,
+      `Wochenübersicht – ${woche.bezeichnung}`,
+    )
+  }
+
   return (
     <div className="view">
       <div className="kopfleiste">
@@ -32,6 +43,9 @@ export default function WochenuebersichtView() {
         <span className="wochen-label">{woche.bezeichnung}</span>
         <button onClick={() => setReferenzdatum(addTage(referenzdatum, 7))}>›</button>
         <button onClick={() => setReferenzdatum(isoHeute())}>Heute</button>
+        <button disabled={aktiveGruppen.length === 0} onClick={drucken}>
+          PDF Wochenübersicht
+        </button>
       </div>
 
       {aktiveGruppen.length === 0 ? (

@@ -10,6 +10,7 @@ import { taeglichenSnapshotWennNoetig, sicherungFaellig } from './db/backup'
 import PersonalView from './components/PersonalView'
 import GruppenView from './components/GruppenView'
 import DienstartenView from './components/DienstartenView'
+import RahmenplanView from './components/RahmenplanView'
 import FeiertageView from './components/FeiertageView'
 import AbwesenheitenView from './components/AbwesenheitenView'
 import KalenderView from './components/KalenderView'
@@ -70,6 +71,7 @@ export default function App() {
           {bereich === 'personal' && <PersonalView />}
           {bereich === 'gruppen' && <GruppenView />}
           {bereich === 'dienstarten' && <DienstartenView />}
+          {bereich === 'rahmenplan' && <RahmenplanView />}
           {bereich === 'feiertage' && <FeiertageView />}
           {bereich === 'abwesenheiten' && <AbwesenheitenView />}
           {bereich === 'kalender' && <KalenderView />}
