@@ -680,6 +680,28 @@ label textarea {
   margin-top: 18px;
 }
 
+/* --- Rahmenplan --- */
+.rahmenplan-personkopf {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.rahmenplan-personkopf-titel {
+  flex: 1;
+}
+.rahmenplan-klapppfeil {
+  color: var(--text-sekundaer);
+  font-size: 13px;
+  width: 14px;
+  text-align: center;
+}
+
 /* --- Wochenplan --- */
 .einstiegs-karte {
   border-color: var(--birke);
