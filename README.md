@@ -49,7 +49,10 @@ nicht alle zwölf Menüpunkte gleichzeitig die Übersicht erschweren.
   Vorlage speichern und auf andere Wochen übernehmen – bei einer noch
   komplett leeren Woche geschieht das automatisch.
 - **Rahmenplan** – fester Wochenrhythmus pro Person (Wochentag → Gruppe/
-  Zeiten), die Basis für jede neue Woche im Wochenplan.
+  Zeiten), die Basis für jede neue Woche im Wochenplan. Gesamtübersicht mit
+  allen Personen auf einen Blick, plus Funktion, den Rahmenplan für mehrere
+  Wochen im Voraus (z. B. 9 Wochen) für alle Personen auf einmal in den
+  Wochenplan zu schreiben.
 - **Dienstarten** – wiederkehrende Schichtmuster verwalten (Bezeichnung,
   Zeiten, Pause), erscheinen im Wochenplan und im Rahmenplan als
   Schnellauswahl.

@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import type { Dienst, Dienstart, Gruppe, Mitarbeiter } from '../types'
-import { formatZeit, parseZeit, stundenText } from '../lib/calendar'
+import { addTage, formatZeit, isoHeute, parseZeit, stundenText, wocheninfo } from '../lib/calendar'
 import { dienstNetto, istAktiv } from '../lib/dienst'
-import { vorlageDatumFuerWochentag } from '../lib/wochenvorlage'
+import { baueUebernahme, vorlageDatumFuerWochentag } from '../lib/wochenvorlage'
 import SpeicherAnzeige from './SpeicherAnzeige'
 import { useSpeicherFeedback } from '../hooks/useSpeicherFeedback'
 
@@ -33,6 +33,9 @@ export default function RahmenplanView() {
   const [suche, setSuche] = useState('')
   const [ausgeklappt, setAusgeklappt] = useState<Set<number>>(new Set())
   const [ansicht, setAnsicht] = useState<'uebersicht' | 'bearbeiten'>('uebersicht')
+  const [anzahlWochen, setAnzahlWochen] = useState(9)
+  const [wirdVorausgeplant, setWirdVorausgeplant] = useState(false)
+  const [vorausplanenMeldung, setVorausplanenMeldung] = useState<string | null>(null)
 
   const aktiveMitarbeiter = useMemo(() => (alleMitarbeiter ?? []).filter((m) => istAktiv(m)), [alleMitarbeiter])
   const aktiveGruppen = (alleGruppen ?? []).filter((g) => g.aktiv)
@@ -135,6 +138,49 @@ export default function RahmenplanView() {
     }
   }
 
+  /**
+   * Schreibt den Rahmenplan (für ALLE Personen, nicht nur eine) im Voraus in
+   * so viele kommende Wochen, wie eingestellt – bisher wurde der Rahmenplan
+   * nur automatisch übernommen, sobald man einzeln auf eine leere Woche im
+   * Wochenplan navigierte. Das reichte nicht, um z.B. neun Wochen am Stück
+   * vorzuschreiben. Wochen, die schon echte Dienste enthalten, werden nicht
+   * angetastet, um nichts versehentlich zu überschreiben.
+   */
+  async function vorausplanen() {
+    const vorlage = (alleDienste ?? []).filter((d) => d.istVorlage)
+    if (vorlage.length === 0) {
+      setVorausplanenMeldung('Noch kein Rahmenplan angelegt – bitte zuerst mindestens eine Person einrichten.')
+      return
+    }
+    setWirdVorausgeplant(true)
+    setVorausplanenMeldung(null)
+    try {
+      const startMontag = wocheninfo(isoHeute()).montag
+      let angelegt = 0
+      let uebersprungen = 0
+      for (let i = 0; i < anzahlWochen; i++) {
+        const zielWoche = wocheninfo(addTage(startMontag, i * 7))
+        const aktuelleDienste = await db.dienste.toArray()
+        const vorhandene = aktuelleDienste.filter((d) => !d.istVorlage && zielWoche.alleTage.includes(d.datum))
+        if (vorhandene.length > 0) {
+          uebersprungen++
+          continue
+        }
+        const { neueDienste } = baueUebernahme(zielWoche, vorlage, false, aktuelleDienste)
+        if (neueDienste.length > 0) {
+          await db.dienste.bulkAdd(neueDienste)
+          angelegt++
+        }
+      }
+      ausloesen()
+      const teile = [`${angelegt} von ${anzahlWochen} Woche(n) für alle Personen angelegt`]
+      if (uebersprungen > 0) teile.push(`${uebersprungen} bereits belegte Woche(n) übersprungen`)
+      setVorausplanenMeldung(teile.join(' · ') + '.')
+    } finally {
+      setWirdVorausgeplant(false)
+    }
+  }
+
   return (
     <div className="view">
       <div className="formular-kopf">
@@ -148,6 +194,28 @@ export default function RahmenplanView() {
         eingetragen – der Rahmenplan hier bleibt davon unberührt. Für jede Person im Team steht eine eigene,
         aufklappbare Karte bereit.
       </p>
+
+      <div className="vorlagen-leiste" style={{ flexWrap: 'wrap' }}>
+        <strong>Im Voraus anlegen:</strong>
+        <span>Rahmenplan für die nächsten</span>
+        <input
+          type="number"
+          min={1}
+          max={52}
+          value={anzahlWochen}
+          onChange={(e) => setAnzahlWochen(Math.max(1, Math.min(52, Number(e.target.value) || 1)))}
+          style={{ width: 64 }}
+        />
+        <span>Wochen für alle Personen in den Wochenplan schreiben</span>
+        <button className="primaer" disabled={wirdVorausgeplant} onClick={vorausplanen}>
+          {wirdVorausgeplant ? 'Wird angelegt …' : 'Jetzt anlegen'}
+        </button>
+      </div>
+      {vorausplanenMeldung && (
+        <p className="hinweis-klein" style={{ marginTop: -8, marginBottom: 16 }}>
+          {vorausplanenMeldung}
+        </p>
+      )}
 
       <div className="kopfleiste">
         <button
