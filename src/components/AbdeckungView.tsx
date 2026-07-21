@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import type { Dienst, Feiertag, Mitarbeiter, Randdienst } from '../types'
 import { addTage, formatDatum, isoHeute, wochentagKurz, wocheninfo } from '../lib/calendar'
-import { pruefeAbdeckung } from '../lib/abdeckung'
+import { pruefeAbdeckung, randdienstFarbe } from '../lib/abdeckung'
 
 export default function AbdeckungView() {
   const randdienste = useLiveQuery(() => db.randdienste.orderBy('reihenfolge').toArray(), [], [] as Randdienst[])
@@ -48,9 +48,12 @@ export default function AbdeckungView() {
             <thead>
               <tr>
                 <th>Tag</th>
-                {aktiv.map((rd) => (
-                  <th key={rd.id}>
-                    <div>{formatZeitKurz(rd.beginnMinuten)}</div>
+                {aktiv.map((rd, i) => (
+                  <th key={rd.id} style={{ borderTop: `3px solid ${randdienstFarbe(i)}` }}>
+                    <div className="randdienst-spaltenkopf">
+                      <span className="randdienst-punkt" style={{ background: randdienstFarbe(i) }} />
+                      {formatZeitKurz(rd.beginnMinuten)}
+                    </div>
                     <div className="hinweis-klein">{rd.bezeichnung}</div>
                   </th>
                 ))}
@@ -80,11 +83,11 @@ export default function AbdeckungView() {
                       <strong>{wochentagKurz(tag)}</strong>
                       <div className="hinweis-klein">{formatDatum(tag)}</div>
                     </td>
-                    {aktiv.map((rd) => {
+                    {aktiv.map((rd, i) => {
                       const zelle = zellen.find((z) => z.randdienst.beginnMinuten === rd.beginnMinuten)
                       const besetzt = zelle && zelle.besetztVon.length > 0
                       return (
-                        <td key={rd.id}>
+                        <td key={rd.id} style={{ borderLeft: `3px solid ${randdienstFarbe(i)}` }}>
                           {besetzt ? (
                             zelle!.besetztVon.map((k) => (
                               <span className="badge-ok" key={k}>
@@ -102,6 +105,15 @@ export default function AbdeckungView() {
               })}
             </tbody>
           </table>
+
+          <div className="kalender-legende" style={{ marginTop: 12 }}>
+            {aktiv.map((rd, i) => (
+              <span key={rd.id} className="kalender-legende-eintrag">
+                <span className="kalender-punkt" style={{ background: randdienstFarbe(i) }} />
+                {rd.bezeichnung} ({formatZeitKurz(rd.beginnMinuten)})
+              </span>
+            ))}
+          </div>
 
           {unbesetzte.length === 0 ? (
             <p className="erfolg-text" style={{ marginTop: 16 }}>

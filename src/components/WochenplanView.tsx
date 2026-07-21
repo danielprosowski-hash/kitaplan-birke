@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import type { Abwesenheit, Abwesenheitsart, Dienst, Dienstart, Feiertag, Gruppe, KalenderEintrag, Mitarbeiter } from '../types'
+import type { Abwesenheit, Abwesenheitsart, Dienst, Dienstart, Feiertag, Gruppe, KalenderEintrag, Mitarbeiter, Randdienst } from '../types'
 import { ABWESENHEITSARTEN, ABWESENHEITS_FARBEN, KALENDER_FARBEN, abwesenheitsartInfo } from '../types'
 import { addTage, formatDatum, formatZeit, isoHeute, parseZeit, stundenText, wochentagKurz, wocheninfo } from '../lib/calendar'
 import { dienstNetto, dienstBrutto, istAktiv, vorname } from '../lib/dienst'
 import { kernzeitDefizit, pauseFehlt, findeUeberschneidungen } from '../lib/pruefungen'
+import { deckRanddienstAb, randdienstFarbe } from '../lib/abdeckung'
 import { berechneWochenkonto } from '../lib/stundenkonto'
 import { baueUebernahme, baueVorlage } from '../lib/wochenvorlage'
 import { useDruck } from './DruckContext'
@@ -30,6 +31,8 @@ export default function WochenplanView() {
   const alleKalender = useLiveQuery(() => db.kalender.toArray(), [], [] as KalenderEintrag[])
   const alleAbwesenheiten = useLiveQuery(() => db.abwesenheiten.toArray(), [], [] as Abwesenheit[])
   const alleDienstarten = useLiveQuery(() => db.dienstarten.orderBy('reihenfolge').toArray(), [], [] as Dienstart[])
+  const alleRanddienste = useLiveQuery(() => db.randdienste.orderBy('reihenfolge').toArray(), [], [] as Randdienst[])
+  const aktiveRanddienste = useMemo(() => (alleRanddienste ?? []).filter((r) => r.aktiv), [alleRanddienste])
 
   const [gewaehlterSlot, setGewaehlterSlot] = useState<number | null>(null)
   const [referenzdatum, setReferenzdatum] = useState(isoHeute())
@@ -340,6 +343,7 @@ export default function WochenplanView() {
                 kalenderEintraege={kalenderProTag.get(tag) ?? []}
                 abwesenheiten={abwesenheitenProTag.get(tag) ?? []}
                 mitarbeiterNachId={mitarbeiterNachId}
+                aktiveRanddienste={aktiveRanddienste}
                 onNeu={() => setNeuFuerTag(tag)}
                 onNeueAbwesenheit={() => setNeueAbwesenheitFuerTag(tag)}
                 onBearbeiten={setBearbeitenDienst}
@@ -427,6 +431,7 @@ function TagSpalte({
   kalenderEintraege,
   abwesenheiten,
   mitarbeiterNachId,
+  aktiveRanddienste,
   onNeu,
   onNeueAbwesenheit,
   onBearbeiten,
@@ -438,6 +443,7 @@ function TagSpalte({
   kalenderEintraege: (KalenderEintrag & { person?: Mitarbeiter })[]
   abwesenheiten: (Abwesenheit & { person?: Mitarbeiter })[]
   mitarbeiterNachId: Map<number, Mitarbeiter>
+  aktiveRanddienste: Randdienst[]
   onNeu: () => void
   onNeueAbwesenheit: () => void
   onBearbeiten: (d: Dienst) => void
@@ -499,26 +505,49 @@ function TagSpalte({
           })}
         </div>
       )}
-      {dienste.map((d) => (
-        <div
-          key={d.id}
-          className={`dienstkarte${pauseFehlt(d) ? ' warnung' : ''}`}
-          draggable
-          onDragStart={(e) => e.dataTransfer.setData('text/plain', String(d.id))}
-          onClick={() => onBearbeiten(d)}
-        >
-          <div className="dienstkarte-kopf">
-            <strong>{d.mitarbeiterId != null ? vorname(mitarbeiterNachId.get(d.mitarbeiterId)?.name) : '?'}</strong>
-            <span className="hinweis-klein">{stundenText(dienstNetto(d))}</span>
-          </div>
-          <div className="hinweis-klein">
-            {formatZeit(d.beginn1Minuten)}–{formatZeit(d.ende1Minuten)}
-            {d.beginn2Minuten != null && d.ende2Minuten != null && (
-              <> · {formatZeit(d.beginn2Minuten)}–{formatZeit(d.ende2Minuten)}</>
+      {dienste.map((d) => {
+        const abgedeckt = aktiveRanddienste
+          .map((rd, i) => ({ rd, farbe: randdienstFarbe(i) }))
+          .filter(({ rd }) => deckRanddienstAb(d, rd))
+        return (
+          <div
+            key={d.id}
+            className={`dienstkarte${pauseFehlt(d) ? ' warnung' : ''}`}
+            draggable
+            onDragStart={(e) => e.dataTransfer.setData('text/plain', String(d.id))}
+            onClick={() => onBearbeiten(d)}
+            style={abgedeckt.length > 0 ? { borderLeft: `4px solid ${abgedeckt[0].farbe}` } : undefined}
+          >
+            <div className="dienstkarte-kopf">
+              <strong>{d.mitarbeiterId != null ? vorname(mitarbeiterNachId.get(d.mitarbeiterId)?.name) : '?'}</strong>
+              <span className="hinweis-klein">{stundenText(dienstNetto(d))}</span>
+            </div>
+            <div className="hinweis-klein">
+              {formatZeit(d.beginn1Minuten)}–{formatZeit(d.ende1Minuten)}
+              {d.beginn2Minuten != null && d.ende2Minuten != null && (
+                <> · {formatZeit(d.beginn2Minuten)}–{formatZeit(d.ende2Minuten)}</>
+              )}
+            </div>
+            {abgedeckt.length > 0 && (
+              <div className="dienstkarte-randdienste">
+                {abgedeckt.map(({ rd, farbe }) => (
+                  <span
+                    key={rd.id}
+                    className="randdienst-punkt"
+                    style={{ background: farbe }}
+                    title={`Deckt Randdienst „${rd.bezeichnung}" ab`}
+                  />
+                ))}
+              </div>
+            )}
+            {d.notiz && (
+              <div className="dienstkarte-notiz" title={d.notiz}>
+                📝 {d.notiz}
+              </div>
             )}
           </div>
-        </div>
-      ))}
+        )
+      })}
       {!istWE && !feiertagName && (
         <div className="tagspalte-aktionen">
           <button className="tagspalte-plus" onClick={onNeu}>
@@ -608,6 +637,7 @@ function DienstNeuSheet({
   const [ende2, setEnde2] = useState('')
   const [pause, setPause] = useState(0.5)
   const [zusatzTage, setZusatzTage] = useState<Set<number>>(new Set())
+  const [notiz, setNotiz] = useState('')
 
   const abwesenheitAmTag = (mitarbeiterId: number) => abwesenheiten.find((a) => a.mitarbeiterId === mitarbeiterId && a.datum === datum)
 
@@ -628,6 +658,7 @@ function DienstNeuSheet({
       pauseStunden: pause,
       mitarbeiterId: personId as number,
       gruppenSlot: gruppe.slot,
+      notiz: notiz.trim() || undefined,
     }))
     await db.dienste.bulkAdd(neue)
     onSchliessen()
@@ -699,6 +730,15 @@ function DienstNeuSheet({
         Pause (Std.)
         <input type="number" step={0.25} min={0} value={pause} onChange={(e) => setPause(Number(e.target.value))} style={{ width: 80 }} />
       </label>
+      <label>
+        Notiz (optional)
+        <textarea
+          rows={2}
+          placeholder="z.B. übernimmt Bringdienst, Rückfrage bei Eltern …"
+          value={notiz}
+          onChange={(e) => setNotiz(e.target.value)}
+        />
+      </label>
       <WochentagAuswahl basisdatum={datum} auswahl={zusatzTage} setAuswahl={setZusatzTage} />
       <div className="modal-aktionen">
         <button onClick={onSchliessen}>Abbrechen</button>
@@ -731,6 +771,7 @@ function DienstBearbeitenSheet({
   const [ende2, setEnde2] = useState(formatZeit(dienst.ende2Minuten))
   const [pause, setPause] = useState(dienst.pauseStunden)
   const [kopierTage, setKopierTage] = useState<Set<number>>(new Set())
+  const [notiz, setNotiz] = useState(dienst.notiz ?? '')
 
   const b1 = parseZeit(beginn1)
   const e1 = parseZeit(ende1)
@@ -755,6 +796,7 @@ function DienstBearbeitenSheet({
       ende1Minuten: e1,
       beginn2Minuten: parseZeit(beginn2),
       ende2Minuten: parseZeit(ende2),
+      notiz: notiz.trim() || undefined,
     }
     await db.dienste.update(dienst.id!, aenderungen)
 
@@ -770,6 +812,7 @@ function DienstBearbeitenSheet({
         pauseStunden: pause,
         mitarbeiterId: aenderungen.mitarbeiterId ?? dienst.mitarbeiterId,
         gruppenSlot: dienst.gruppenSlot,
+        notiz: aenderungen.notiz,
       }))
       await db.dienste.bulkAdd(kopien)
     }
@@ -844,6 +887,15 @@ function DienstBearbeitenSheet({
         <span className="hinweis-klein">Netto-Stunden</span>
         <strong>{stundenText(netto)}</strong>
       </div>
+      <label>
+        Notiz (optional)
+        <textarea
+          rows={2}
+          placeholder="z.B. übernimmt Bringdienst, Rückfrage bei Eltern …"
+          value={notiz}
+          onChange={(e) => setNotiz(e.target.value)}
+        />
+      </label>
       <WochentagAuswahl basisdatum={dienst.datum} auswahl={kopierTage} setAuswahl={setKopierTage} />
       {kopierTage.size > 0 && (
         <p className="hinweis-klein">

@@ -8,6 +8,16 @@ export interface AbdeckungsZelle {
 
 export const TOLERANZ_MINUTEN = 15
 
+/** Feste Farbpalette für Randdienste – nach Reihenfolge zugewiesen (siehe
+ * `randdienstFarbe`), damit z.B. "Frühdienst" und "Spätdienst" überall in der
+ * App (Abdeckungs-Tabelle, Dienstkarten im Wochenplan) mit derselben Farbe
+ * wiederzuerkennen sind, ohne dass dafür ein Datenbank-Feld nötig ist. */
+export const RANDDIENST_PALETTE = ['#1c7ed6', '#e8590c', '#7048e8', '#0ca678', '#c1502e', '#ae8e26']
+
+export function randdienstFarbe(index: number): string {
+  return RANDDIENST_PALETTE[index % RANDDIENST_PALETTE.length]
+}
+
 /**
  * true, wenn die Person zum Zeitpunkt `minute` laut Dienst tatsächlich
  * anwesend ist (inklusive der genauen Schichtend-Minute – wessen Dienst
@@ -20,6 +30,16 @@ function istZumZeitpunktAnwesend(d: Dienst, minute: number): boolean {
     return true
   }
   return false
+}
+
+/** true, wenn dieser Dienst den gegebenen Randdienst zeitlich abdeckt – exakt
+ * dieselbe Regel wie in `pruefeAbdeckung`, nur wiederverwendbar für einzelne
+ * Dienste (z.B. um eine Dienstkarte im Wochenplan entsprechend einzufärben). */
+export function deckRanddienstAb(d: Dienst, rd: Randdienst): boolean {
+  if (istZumZeitpunktAnwesend(d, rd.beginnMinuten)) return true
+  const naheBlock1 = Math.abs(d.beginn1Minuten - rd.beginnMinuten) <= TOLERANZ_MINUTEN
+  const naheBlock2 = d.beginn2Minuten != null && Math.abs(d.beginn2Minuten - rd.beginnMinuten) <= TOLERANZ_MINUTEN
+  return naheBlock1 || naheBlock2
 }
 
 /**
@@ -46,12 +66,7 @@ export function pruefeAbdeckung(
     const tagesDienste = dienste.filter((d) => d.datum === tag)
     const zellen: AbdeckungsZelle[] = []
     for (const rd of randdienste.filter((r) => r.aktiv)) {
-      const passend = tagesDienste.filter((d) => {
-        if (istZumZeitpunktAnwesend(d, rd.beginnMinuten)) return true
-        const naheBlock1 = Math.abs(d.beginn1Minuten - rd.beginnMinuten) <= TOLERANZ_MINUTEN
-        const naheBlock2 = d.beginn2Minuten != null && Math.abs(d.beginn2Minuten - rd.beginnMinuten) <= TOLERANZ_MINUTEN
-        return naheBlock1 || naheBlock2
-      })
+      const passend = tagesDienste.filter((d) => deckRanddienstAb(d, rd))
       const kuerzel = passend
         .map((d) => (d.mitarbeiterId != null ? mitarbeiterNachId.get(d.mitarbeiterId)?.kuerzel : undefined))
         .filter((k): k is string => !!k)

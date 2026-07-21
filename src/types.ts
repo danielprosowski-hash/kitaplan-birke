@@ -115,6 +115,10 @@ export interface Dienst {
   pauseStunden: number
   mitarbeiterId: number | null
   gruppenSlot: number | null
+  /** Freitext-Notiz zu diesem einen Diensteintrag (Tag + Person), z.B.
+   * "übernimmt Bringdienst" oder "Rückfrage bei Eltern nötig". Optional,
+   * damit ältere Datensätze ohne Migration weiter funktionieren. */
+  notiz?: string
 }
 
 export interface IstZeit {
