@@ -20,6 +20,11 @@ export interface Snapshot {
 export interface Einstellungen {
   id?: number
   bundesland: string // Code aus BUNDESLAENDER, steuert die automatische Feiertagsberechnung
+  /** Anzahl der Wochen in der Rahmenplan-Rotation (Standard 1 = eine einzige
+   * Woche wiederholt sich immer). Bei z.B. 9 kann für jede Person für 9
+   * unterschiedliche Wochen im Voraus geplant werden, die dann reihum auf
+   * die echten Kalenderwochen angewendet werden. */
+  rahmenplanRotationswochen?: number
 }
 
 /**

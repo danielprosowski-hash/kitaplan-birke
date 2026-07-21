@@ -4,7 +4,7 @@ import { db } from '../db/db'
 import type { Dienst, Dienstart, Gruppe, Mitarbeiter } from '../types'
 import { addTage, formatZeit, isoHeute, parseZeit, stundenText, wocheninfo } from '../lib/calendar'
 import { dienstNetto, istAktiv } from '../lib/dienst'
-import { baueUebernahme, vorlageDatumFuerWochentag } from '../lib/wochenvorlage'
+import { baueUebernahme, rotationswocheFuerMontag, vorlageDatumFuerWochentag } from '../lib/wochenvorlage'
 import SpeicherAnzeige from './SpeicherAnzeige'
 import { useSpeicherFeedback } from '../hooks/useSpeicherFeedback'
 
@@ -28,7 +28,10 @@ export default function RahmenplanView() {
   const alleGruppen = useLiveQuery(() => db.gruppen.orderBy('slot').toArray(), [], [] as Gruppe[])
   const alleDienste = useLiveQuery(() => db.dienste.toArray(), [], [] as Dienst[])
   const alleDienstarten = useLiveQuery(() => db.dienstarten.orderBy('reihenfolge').toArray(), [], [] as Dienstart[])
+  const einstellungen = useLiveQuery(() => db.einstellungen.toCollection().first(), [], undefined)
   const { sichtbar, ausloesen } = useSpeicherFeedback()
+
+  const anzahlRotationswochen = einstellungen?.rahmenplanRotationswochen ?? 1
 
   const [suche, setSuche] = useState('')
   const [ausgeklappt, setAusgeklappt] = useState<Set<number>>(new Set())
@@ -36,6 +39,20 @@ export default function RahmenplanView() {
   const [anzahlWochen, setAnzahlWochen] = useState(9)
   const [wirdVorausgeplant, setWirdVorausgeplant] = useState(false)
   const [vorausplanenMeldung, setVorausplanenMeldung] = useState<string | null>(null)
+  const [rotWoche, setRotWoche] = useState(1)
+
+  // Falls die Anzahl Rotationswochen gerade verkleinert wurde, nicht auf
+  // einer nicht mehr existierenden Woche stehen bleiben.
+  const rotWocheAktiv = Math.min(rotWoche, anzahlRotationswochen)
+
+  async function anzahlRotationswochenAendern(neu: number) {
+    const wert = Math.max(1, Math.min(52, neu))
+    if (einstellungen?.id != null) {
+      await db.einstellungen.update(einstellungen.id, { rahmenplanRotationswochen: wert })
+    } else {
+      await db.einstellungen.add({ bundesland: 'ST', rahmenplanRotationswochen: wert })
+    }
+  }
 
   const aktiveMitarbeiter = useMemo(() => (alleMitarbeiter ?? []).filter((m) => istAktiv(m)), [alleMitarbeiter])
   const aktiveGruppen = (alleGruppen ?? []).filter((g) => g.aktiv)
@@ -50,7 +67,9 @@ export default function RahmenplanView() {
   }, [aktiveMitarbeiter, suche])
 
   function vorlageVon(personId: number): Dienst[] {
-    return (alleDienste ?? []).filter((d) => d.istVorlage && d.mitarbeiterId === personId)
+    return (alleDienste ?? []).filter(
+      (d) => d.istVorlage && d.mitarbeiterId === personId && (d.rotationsWoche ?? 1) === rotWocheAktiv,
+    )
   }
 
   function toggle(personId: number) {
@@ -100,6 +119,7 @@ export default function RahmenplanView() {
         pauseStunden: feld === 'pauseStunden' ? (wert ?? 0.5) : 0.5,
         mitarbeiterId: personId,
         gruppenSlot: feld === 'gruppenSlot' ? wert : null,
+        rotationsWoche: rotWocheAktiv,
       })
     }
     ausloesen()
@@ -124,6 +144,7 @@ export default function RahmenplanView() {
         ...felder,
         mitarbeiterId: personId,
         gruppenSlot: aktiveGruppen[0]?.slot ?? null,
+        rotationsWoche: rotWocheAktiv,
       })
     }
     ausloesen()
@@ -143,12 +164,14 @@ export default function RahmenplanView() {
    * so viele kommende Wochen, wie eingestellt – bisher wurde der Rahmenplan
    * nur automatisch übernommen, sobald man einzeln auf eine leere Woche im
    * Wochenplan navigierte. Das reichte nicht, um z.B. neun Wochen am Stück
-   * vorzuschreiben. Wochen, die schon echte Dienste enthalten, werden nicht
-   * angetastet, um nichts versehentlich zu überschreiben.
+   * vorzuschreiben. Bei mehreren Rotationswochen bekommt jede Zielwoche die
+   * zu ihr passende Rotationswoche (1..N reihum), nicht überall dieselbe.
+   * Wochen, die schon echte Dienste enthalten, werden nicht angetastet, um
+   * nichts versehentlich zu überschreiben.
    */
   async function vorausplanen() {
-    const vorlage = (alleDienste ?? []).filter((d) => d.istVorlage)
-    if (vorlage.length === 0) {
+    const gesamteVorlage = (alleDienste ?? []).filter((d) => d.istVorlage)
+    if (gesamteVorlage.length === 0) {
       setVorausplanenMeldung('Noch kein Rahmenplan angelegt – bitte zuerst mindestens eine Person einrichten.')
       return
     }
@@ -160,13 +183,15 @@ export default function RahmenplanView() {
       let uebersprungen = 0
       for (let i = 0; i < anzahlWochen; i++) {
         const zielWoche = wocheninfo(addTage(startMontag, i * 7))
+        const zielRotWoche = rotationswocheFuerMontag(zielWoche.montag, anzahlRotationswochen)
+        const vorlageDieserWoche = gesamteVorlage.filter((d) => (d.rotationsWoche ?? 1) === zielRotWoche)
         const aktuelleDienste = await db.dienste.toArray()
         const vorhandene = aktuelleDienste.filter((d) => !d.istVorlage && zielWoche.alleTage.includes(d.datum))
         if (vorhandene.length > 0) {
           uebersprungen++
           continue
         }
-        const { neueDienste } = baueUebernahme(zielWoche, vorlage, false, aktuelleDienste)
+        const { neueDienste } = baueUebernahme(zielWoche, vorlageDieserWoche, false, aktuelleDienste)
         if (neueDienste.length > 0) {
           await db.dienste.bulkAdd(neueDienste)
           angelegt++
@@ -175,6 +200,7 @@ export default function RahmenplanView() {
       ausloesen()
       const teile = [`${angelegt} von ${anzahlWochen} Woche(n) für alle Personen angelegt`]
       if (uebersprungen > 0) teile.push(`${uebersprungen} bereits belegte Woche(n) übersprungen`)
+      if (anzahlRotationswochen > 1) teile.push(`jeweils passende Rotationswoche (1–${anzahlRotationswochen}) verwendet`)
       setVorausplanenMeldung(teile.join(' · ') + '.')
     } finally {
       setWirdVorausgeplant(false)
@@ -188,12 +214,49 @@ export default function RahmenplanView() {
         <SpeicherAnzeige sichtbar={sichtbar} />
       </div>
       <p className="view-untertitel">
-        Der feste Wochenplan pro Person – Montag bis Freitag, jeweils Gruppe und Uhrzeit. Das ist die Basis für jede
-        neue Woche: sobald eine Woche im Wochenplan noch leer ist, wird der Rahmenplan automatisch übernommen.
-        Urlaub, Krankheit oder ein Tausch werden weiterhin nur für die jeweilige Woche im Wochenplan selbst
-        eingetragen – der Rahmenplan hier bleibt davon unberührt. Für jede Person im Team steht eine eigene,
-        aufklappbare Karte bereit.
+        Der Wochenplan pro Person – Montag bis Freitag, jeweils Gruppe und Uhrzeit. Das ist die Basis für jede neue
+        Woche im Wochenplan. Wiederholt sich bei euch der Dienstplan nicht jede Woche gleich, sondern rotiert über
+        mehrere unterschiedliche Wochen (z. B. ein 9-Wochen-Rhythmus), stellt das unten ein – dann lässt sich für
+        jede Rotationswoche ein eigener Plan hinterlegen, der reihum auf die echten Kalenderwochen angewendet wird.
+        Urlaub, Krankheit oder ein Tausch werden weiterhin nur für die jeweilige echte Woche im Wochenplan selbst
+        eingetragen – der Rahmenplan hier bleibt davon unberührt.
       </p>
+
+      <div className="vorlagen-leiste" style={{ flexWrap: 'wrap' }}>
+        <strong>Rotation:</strong>
+        <span>Der Dienstplan rotiert über</span>
+        <input
+          type="number"
+          min={1}
+          max={52}
+          value={anzahlRotationswochen}
+          onChange={(e) => anzahlRotationswochenAendern(Number(e.target.value) || 1)}
+          style={{ width: 64 }}
+        />
+        <span>unterschiedliche Woche(n){anzahlRotationswochen === 1 ? ' (wiederholt sich also immer gleich)' : ''}</span>
+      </div>
+
+      {anzahlRotationswochen > 1 && (
+        <div className="vorlagen-leiste" style={{ flexWrap: 'wrap' }}>
+          <strong>Gerade bearbeitet:</strong>
+          <div className="wochentag-auswahl-reihe">
+            {Array.from({ length: anzahlRotationswochen }, (_, i) => i + 1).map((w) => (
+              <button
+                key={w}
+                type="button"
+                className={`wochentag-knopf${w === rotWocheAktiv ? ' aktiv' : ''}`}
+                style={{ width: 44 }}
+                onClick={() => setRotWoche(w)}
+              >
+                {w}
+              </button>
+            ))}
+          </div>
+          <span className="hinweis-klein">
+            Woche {rotWocheAktiv} von {anzahlRotationswochen} – gilt für Gesamtübersicht und Einzeln bearbeiten unten.
+          </span>
+        </div>
+      )}
 
       <div className="vorlagen-leiste" style={{ flexWrap: 'wrap' }}>
         <strong>Im Voraus anlegen:</strong>
@@ -206,7 +269,10 @@ export default function RahmenplanView() {
           onChange={(e) => setAnzahlWochen(Math.max(1, Math.min(52, Number(e.target.value) || 1)))}
           style={{ width: 64 }}
         />
-        <span>Wochen für alle Personen in den Wochenplan schreiben</span>
+        <span>
+          Wochen für alle Personen in den Wochenplan schreiben
+          {anzahlRotationswochen > 1 ? ' (jede Zielwoche bekommt automatisch die passende Rotationswoche)' : ''}
+        </span>
         <button className="primaer" disabled={wirdVorausgeplant} onClick={vorausplanen}>
           {wirdVorausgeplant ? 'Wird angelegt …' : 'Jetzt anlegen'}
         </button>

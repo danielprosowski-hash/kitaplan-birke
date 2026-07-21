@@ -4,7 +4,7 @@ import { arbZGPause, dienstBrutto, dienstNetto } from '../dienst'
 import { kernzeitDefizit, pauseFehlt, findeUeberschneidungen, dienstUeberlappt } from '../pruefungen'
 import { berechneTage, summen } from '../abrechnung'
 import { berechneWochenkonto } from '../stundenkonto'
-import { baueUebernahme, baueVorlage } from '../wochenvorlage'
+import { baueUebernahme, baueVorlage, rotationswocheFuerMontag } from '../wochenvorlage'
 import { berechneFeiertage } from '../feiertage'
 import { pruefeAbdeckung } from '../abdeckung'
 import type { Dienst, Mitarbeiter, Randdienst } from '../../types'
@@ -253,7 +253,7 @@ describe('wochenvorlage: Rundreise Vorlage -> Übernahme behält Wochentage', ()
       gruppenSlot: 3,
     }
 
-    const vorlage = baueVorlage(quellWoche, [montagsDienst, freitagsDienst])
+    const vorlage = baueVorlage(quellWoche, [montagsDienst, freitagsDienst], 1)
     expect(vorlage).toHaveLength(2)
 
     // Simuliert, dass die Vorlage in der DB gespeichert wurde (id vergeben).
@@ -271,6 +271,29 @@ describe('wochenvorlage: Rundreise Vorlage -> Übernahme behält Wochentage', ()
     expect(neuerFreitag.datum).toBe(zielWoche.werktage[4])
     expect(neuerMontag.beginn1Minuten).toBe(8 * 60)
     expect(neuerFreitag.beginn1Minuten).toBe(9 * 60)
+  })
+})
+
+describe('Rahmenplan-Rotation (mehrere unterschiedliche Wochen)', () => {
+  it('liefert immer Woche 1, wenn nur mit einer Woche gearbeitet wird', () => {
+    expect(rotationswocheFuerMontag('2018-01-01', 1)).toBe(1)
+    expect(rotationswocheFuerMontag('2026-03-02', 1)).toBe(1)
+  })
+
+  it('rotiert deterministisch über N Wochen und beginnt bei der Referenzwoche mit 1', () => {
+    expect(rotationswocheFuerMontag('2018-01-01', 9)).toBe(1)
+    expect(rotationswocheFuerMontag('2018-01-08', 9)).toBe(2)
+    expect(rotationswocheFuerMontag('2018-01-15', 9)).toBe(3)
+    // Nach genau 9 Wochen beginnt der Zyklus wieder bei 1.
+    expect(rotationswocheFuerMontag('2018-03-05', 9)).toBe(1)
+  })
+
+  it('liefert für dieselbe Kalenderwoche stets denselben Index (stabil über die Zeit)', () => {
+    const a = rotationswocheFuerMontag('2026-03-02', 9)
+    const b = rotationswocheFuerMontag('2026-03-02', 9)
+    expect(a).toBe(b)
+    expect(a).toBeGreaterThanOrEqual(1)
+    expect(a).toBeLessThanOrEqual(9)
   })
 })
 

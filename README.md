@@ -48,11 +48,15 @@ nicht alle zwölf Menüpunkte gleichzeitig die Übersicht erschweren.
   Knöpfe für wiederkehrende Dienstarten. Standard-Woche/Rahmenplan als
   Vorlage speichern und auf andere Wochen übernehmen – bei einer noch
   komplett leeren Woche geschieht das automatisch.
-- **Rahmenplan** – fester Wochenrhythmus pro Person (Wochentag → Gruppe/
-  Zeiten), die Basis für jede neue Woche im Wochenplan. Gesamtübersicht mit
-  allen Personen auf einen Blick, plus Funktion, den Rahmenplan für mehrere
-  Wochen im Voraus (z. B. 9 Wochen) für alle Personen auf einmal in den
-  Wochenplan zu schreiben.
+- **Rahmenplan** – Wochenrhythmus pro Person (Wochentag → Gruppe/Zeiten), die
+  Basis für jede neue Woche im Wochenplan. Unterstützt echte Rotation über
+  mehrere unterschiedliche Wochen (z. B. 9-Wochen-Rhythmus, einstellbar):
+  pro Rotationswoche ein eigener Plan je Person, der reihum – nicht überall
+  gleich – auf die echten Kalenderwochen angewendet wird. Gesamtübersicht
+  mit allen Personen auf einen Blick, plus Funktion, den Rahmenplan für
+  mehrere Wochen im Voraus (z. B. 9 Wochen) für alle Personen auf einmal in
+  den Wochenplan zu schreiben – dabei bekommt jede Zielwoche automatisch
+  die passende Rotationswoche.
 - **Dienstarten** – wiederkehrende Schichtmuster verwalten (Bezeichnung,
   Zeiten, Pause), erscheinen im Wochenplan und im Rahmenplan als
   Schnellauswahl.

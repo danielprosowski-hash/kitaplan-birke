@@ -8,7 +8,7 @@ import { dienstNetto, dienstBrutto, istAktiv, vorname } from '../lib/dienst'
 import { kernzeitDefizit, pauseFehlt, findeUeberschneidungen } from '../lib/pruefungen'
 import { deckRanddienstAb, randdienstFarbe } from '../lib/abdeckung'
 import { berechneWochenkonto } from '../lib/stundenkonto'
-import { baueUebernahme, baueVorlage } from '../lib/wochenvorlage'
+import { baueUebernahme, baueVorlage, rotationswocheFuerMontag } from '../lib/wochenvorlage'
 import { useDruck } from './DruckContext'
 import Modal from './Modal'
 import WochenaushangDruck from './print/WochenaushangDruck'
@@ -33,6 +33,8 @@ export default function WochenplanView() {
   const alleDienstarten = useLiveQuery(() => db.dienstarten.orderBy('reihenfolge').toArray(), [], [] as Dienstart[])
   const alleRanddienste = useLiveQuery(() => db.randdienste.orderBy('reihenfolge').toArray(), [], [] as Randdienst[])
   const aktiveRanddienste = useMemo(() => (alleRanddienste ?? []).filter((r) => r.aktiv), [alleRanddienste])
+  const einstellungen = useLiveQuery(() => db.einstellungen.toCollection().first(), [], undefined)
+  const anzahlRotationswochen = einstellungen?.rahmenplanRotationswochen ?? 1
 
   const [gewaehlterSlot, setGewaehlterSlot] = useState<number | null>(null)
   const [referenzdatum, setReferenzdatum] = useState(isoHeute())
@@ -138,27 +140,44 @@ export default function WochenplanView() {
     await db.dienste.update(dienstId, { datum: neuesDatum })
   }
 
-  // --- Standard-Woche ---
-  const vorlagenAnzahl = (alleDienste ?? []).filter((d) => d.istVorlage).length
+  // --- Standard-Woche / Rahmenplan ---
+  // Bei einer Rotation aus mehreren Wochen (Einstellung im Rahmenplan) gilt
+  // für jede echte Kalenderwoche eine andere der hinterlegten Wochen – die
+  // hier gezeigte/gespeicherte Vorlage bezieht sich immer nur auf die zur
+  // angezeigten Woche passende Rotationswoche, nicht auf alle auf einmal.
+  const rotationsWocheAktuell = useMemo(
+    () => rotationswocheFuerMontag(woche.montag, anzahlRotationswochen),
+    [woche.montag, anzahlRotationswochen],
+  )
+  const vorlageDieserRotationswoche = useMemo(
+    () => (alleDienste ?? []).filter((d) => d.istVorlage && (d.rotationsWoche ?? 1) === rotationsWocheAktuell),
+    [alleDienste, rotationsWocheAktuell],
+  )
+  const vorlagenAnzahl = vorlageDieserRotationswoche.length
   const diensteInZielwoche = (alleDienste ?? []).filter((d) => !d.istVorlage && woche.alleTage.includes(d.datum)).length
   const diensteFuerGruppeInWoche = gruppe ? wochendienste.filter((d) => d.gruppenSlot === gruppe.slot).length : 0
 
   async function speichereAlsVorlage() {
-    const neueVorlage = baueVorlage(woche, alleDienste ?? [])
-    const alteVorlageIds = (alleDienste ?? []).filter((d) => d.istVorlage && d.id != null).map((d) => d.id!)
+    const neueVorlage = baueVorlage(woche, alleDienste ?? [], rotationsWocheAktuell)
+    const alteVorlageIds = vorlageDieserRotationswoche.filter((d) => d.id != null).map((d) => d.id!)
     await db.transaction('rw', db.dienste, async () => {
       if (alteVorlageIds.length > 0) await db.dienste.bulkDelete(alteVorlageIds)
       if (neueVorlage.length > 0) await db.dienste.bulkAdd(neueVorlage)
     })
-    zeige(`${neueVorlage.length} Dienste als Vorlage gespeichert.`)
+    zeige(
+      anzahlRotationswochen > 1
+        ? `${neueVorlage.length} Dienste als Rotationswoche ${rotationsWocheAktuell} von ${anzahlRotationswochen} gespeichert.`
+        : `${neueVorlage.length} Dienste als Vorlage gespeichert.`,
+    )
     setZeigeSpeichernAlsVorlage(false)
   }
 
   // --- Rahmenplan automatisch übernehmen: sobald eine komplett leere Woche
   // (noch KEIN echter Dienst irgendwo, egal welche Gruppe) geöffnet wird und
-  // ein Rahmenplan existiert, wird er transparent eingesetzt – ohne
-  // bestehende Einträge anzufassen (die Bedingung greift nur, wenn wirklich
-  // noch nichts da ist) und pro Woche nur einmal. ---
+  // für die passende Rotationswoche ein Rahmenplan existiert, wird er
+  // transparent eingesetzt – ohne bestehende Einträge anzufassen (die
+  // Bedingung greift nur, wenn wirklich noch nichts da ist) und pro Woche
+  // nur einmal. ---
   useEffect(() => {
     if (alleDienste == null) return
     if (vorlagenAnzahl === 0) return
@@ -166,19 +185,17 @@ export default function WochenplanView() {
     if (autoUebernommenFuer === woche.montag) return
     setAutoUebernommenFuer(woche.montag)
     ;(async () => {
-      const vorlage = alleDienste.filter((d) => d.istVorlage)
-      const { neueDienste } = baueUebernahme(woche, vorlage, false, alleDienste)
+      const { neueDienste } = baueUebernahme(woche, vorlageDieserRotationswoche, false, alleDienste)
       if (neueDienste.length > 0) {
         await db.dienste.bulkAdd(neueDienste)
         zeige(`Rahmenplan automatisch für ${woche.bezeichnung} übernommen (${neueDienste.length} Dienste).`)
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [woche.montag, vorlagenAnzahl, diensteInZielwoche, alleDienste, autoUebernommenFuer])
+  }, [woche.montag, vorlagenAnzahl, diensteInZielwoche, alleDienste, autoUebernommenFuer, vorlageDieserRotationswoche])
 
   async function uebernehmen(vorhandeneErsetzen: boolean) {
-    const vorlage = (alleDienste ?? []).filter((d) => d.istVorlage)
-    const { neueDienste, zuLoeschenIds } = baueUebernahme(woche, vorlage, vorhandeneErsetzen, alleDienste ?? [])
+    const { neueDienste, zuLoeschenIds } = baueUebernahme(woche, vorlageDieserRotationswoche, vorhandeneErsetzen, alleDienste ?? [])
     await db.transaction('rw', db.dienste, async () => {
       if (zuLoeschenIds.length > 0) await db.dienste.bulkDelete(zuLoeschenIds)
       if (neueDienste.length > 0) await db.dienste.bulkAdd(neueDienste)
@@ -270,9 +287,15 @@ export default function WochenplanView() {
 
       <div className="vorlagen-leiste">
         <span>
+          {anzahlRotationswochen > 1 && (
+            <strong>Rotationswoche {rotationsWocheAktuell} von {anzahlRotationswochen}:{' '}</strong>
+          )}
           {vorlagenAnzahl === 0 ? 'Keine Standard-Woche gespeichert.' : `Standard-Woche gespeichert (${vorlagenAnzahl} Dienste).`}
           {' '}
-          <span className="hinweis-klein">Gilt für die ganze angezeigte Woche, über alle Gruppen hinweg – nicht nur für {gruppe?.name ?? 'die gewählte Gruppe'}.</span>
+          <span className="hinweis-klein">
+            Gilt für die ganze angezeigte Woche, über alle Gruppen hinweg – nicht nur für {gruppe?.name ?? 'die gewählte Gruppe'}.
+            {anzahlRotationswochen > 1 && ' Andere Rotationswochen bleiben davon unberührt, siehe „Rahmenplan".'}
+          </span>
         </span>
         <span className="spacer" />
         {meldung && <span className="erfolg-text">{meldung}</span>}

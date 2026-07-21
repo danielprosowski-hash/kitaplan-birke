@@ -119,6 +119,11 @@ export interface Dienst {
    * "übernimmt Bringdienst" oder "Rückfrage bei Eltern nötig". Optional,
    * damit ältere Datensätze ohne Migration weiter funktionieren. */
   notiz?: string
+  /** Nur relevant, wenn istVorlage=true: welche Woche einer mehrwöchigen
+   * Rotation dieser Rahmenplan-Eintrag darstellt (1-basiert). Fehlt das
+   * Feld (ältere Datensätze, oder wenn nur mit einer Woche gearbeitet
+   * wird), gilt automatisch Woche 1. */
+  rotationsWoche?: number
 }
 
 export interface IstZeit {

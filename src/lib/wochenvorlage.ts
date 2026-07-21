@@ -33,8 +33,36 @@ export function istVorlageDatum(iso: string): boolean {
 
 export type NeuerDienst = Omit<Dienst, 'id'>
 
-/** Baut aus den echten Diensten der Quellwoche die neuen Vorlagen-Dienste. */
-export function baueVorlage(quellWoche: Wocheninfo, alleDienste: Dienst[]): NeuerDienst[] {
+/** Fester Anker-Montag für die Rotationsberechnung (ein beliebiger,
+ * garantiert vergangener Montag) – so bleibt "Rotationswoche 1" über Jahre
+ * hinweg immer denselben Kalenderwochen zugeordnet, egal wann die App
+ * geöffnet wird. */
+const REFERENZ_MONTAG = '2018-01-01'
+
+function wochenAbstandSeitReferenz(montag: string): number {
+  const ref = new Date(`${REFERENZ_MONTAG}T00:00:00`)
+  const cur = new Date(`${montag}T00:00:00`)
+  const tage = Math.round((cur.getTime() - ref.getTime()) / 86400000)
+  return Math.floor(tage / 7)
+}
+
+/**
+ * 1-basierter Rotationswochen-Index für die echte Kalenderwoche mit diesem
+ * Montag. Bei `anzahlRotationswochen <= 1` immer 1 – das entspricht dem
+ * klassischen Verhalten, bei dem sich eine einzige Woche endlos wiederholt.
+ * Bei z.B. 9 rotiert der Index deterministisch 1..9..1..9..
+ */
+export function rotationswocheFuerMontag(montag: string, anzahlRotationswochen: number): number {
+  if (anzahlRotationswochen <= 1) return 1
+  const abstand = wochenAbstandSeitReferenz(montag)
+  const mod = ((abstand % anzahlRotationswochen) + anzahlRotationswochen) % anzahlRotationswochen
+  return mod + 1
+}
+
+/** Baut aus den echten Diensten der Quellwoche die neuen Vorlagen-Dienste –
+ * für die angegebene Rotationswoche (1, wenn nur mit einer Woche gearbeitet
+ * wird). */
+export function baueVorlage(quellWoche: Wocheninfo, alleDienste: Dienst[], rotationsWoche: number): NeuerDienst[] {
   const quellTage = new Set(quellWoche.alleTage)
   const quellDienste = alleDienste.filter((d) => !d.istVorlage && quellTage.has(d.datum))
   return quellDienste.map((d) => ({
@@ -47,6 +75,7 @@ export function baueVorlage(quellWoche: Wocheninfo, alleDienste: Dienst[]): Neue
     pauseStunden: d.pauseStunden,
     mitarbeiterId: d.mitarbeiterId,
     gruppenSlot: d.gruppenSlot,
+    rotationsWoche,
   }))
 }
 
