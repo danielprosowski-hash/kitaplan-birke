@@ -48,12 +48,42 @@ export async function sicherungHerunterladen(): Promise<string> {
   return a.download
 }
 
+/** Prüft eine eingelesene (potenziell manipulierte) Sicherungsdatei, bevor
+ * ihr Inhalt in die Datenbank geschrieben wird: korrektes Format, und pro
+ * Tabelle entweder gar keine Angabe (ältere Sicherung) oder ein Array aus
+ * einfachen Objekten – keine Strings, Funktionen, verschachtelten Arrays
+ * o.ä. Verhindert, dass eine absichtlich kaputte Datei beliebige Werte in
+ * die App-Datenbank einschleust. */
+function istGueltigeSicherung(wert: unknown): wert is Sicherungsdatei {
+  if (typeof wert !== 'object' || wert === null) return false
+  const obj = wert as Record<string, unknown>
+  if (obj.format !== 'kitaplan-sicherung') return false
+  if (typeof obj.erstelltAm !== 'string') return false
+  if (typeof obj.daten !== 'object' || obj.daten === null) return false
+  const daten = obj.daten as Record<string, unknown>
+  for (const tabelle of DATENTABELLEN) {
+    const zeilen = daten[tabelle]
+    if (zeilen === undefined) continue
+    if (!Array.isArray(zeilen)) return false
+    const alleGueltig = zeilen.every(
+      (zeile) => typeof zeile === 'object' && zeile !== null && !Array.isArray(zeile),
+    )
+    if (!alleGueltig) return false
+  }
+  return true
+}
+
 /** Spielt eine zuvor heruntergeladene Sicherungsdatei zurück.
  * Ersetzt IMMER den kompletten aktuellen Datenbestand. */
 export async function sicherungEinspielen(datei: File): Promise<void> {
   const text = await datei.text()
-  const parsed = JSON.parse(text) as Sicherungsdatei
-  if (parsed.format !== 'kitaplan-sicherung' || !parsed.daten) {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    throw new Error('Die Datei lässt sich nicht lesen – das ist kein gültiges JSON.')
+  }
+  if (!istGueltigeSicherung(parsed)) {
     throw new Error('Das ist keine gültige Kitaplan-Birke-Sicherungsdatei.')
   }
   await db.transaction('rw', DATENTABELLEN.map((t) => db.table(t)), async () => {
@@ -97,7 +127,15 @@ export async function snapshotsListe() {
 export async function snapshotWiederherstellen(id: number): Promise<void> {
   const snap = await db.snapshots.get(id)
   if (!snap) throw new Error('Sicherung nicht gefunden.')
-  const parsed = JSON.parse(snap.json) as Sicherungsdatei
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(snap.json)
+  } catch {
+    throw new Error('Diese interne Sicherung ist beschädigt und lässt sich nicht lesen.')
+  }
+  if (!istGueltigeSicherung(parsed)) {
+    throw new Error('Diese interne Sicherung ist beschädigt oder ungültig.')
+  }
   await db.transaction('rw', DATENTABELLEN.map((t) => db.table(t)), async () => {
     for (const tabelle of DATENTABELLEN) {
       await db.table(tabelle).clear()
